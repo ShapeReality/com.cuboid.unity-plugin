@@ -1,7 +1,9 @@
 # Unity Plugin for Cuboid
+Unity Plugin for importing assets into the Cuboid App. 
+
 **Package name**: `com.cuboid.unity-plugin`
 
-Unity Plugin for importing assets into the Cuboid App. 
+**Created by**: [ShapeReality](https://shapereality.io/)
 
 **Manual**: https://cuboid.readthedocs.io/.
 
