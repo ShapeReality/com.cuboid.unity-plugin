@@ -1,0 +1,40 @@
+VisualElement {}
+
+.collection-item
+{
+    -unity-font-style: bold;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-content: flex-start;
+}
+
+.collection-item Image
+{
+    width: 20px;
+    margin-left: 2px;
+    margin-right: 2px;
+    flex-grow: 0;
+    flex-shrink: 1;
+}
+
+.collection-item Label
+{
+    flex-shrink: 1;
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+}
+
+Toolbar
+{
+    justify-content: space-between;
+}
+
+#ToolbarLogo
+{
+    max-width: 100px;
+}
+
+#AssetCollectionsToolbar
+{
+    height: 40px;
+}
