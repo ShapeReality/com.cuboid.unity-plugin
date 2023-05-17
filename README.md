@@ -1,4 +1,5 @@
 # com.cuboid.unity-plugin
 Unity Plugin for importing assets into the Cuboid App. 
 
-Go to https://cuboid.readthedocs.io/ for the **Manual**. 
+Manual: https://cuboid.readthedocs.io/.
+License: https://cuboid.readthedocs.io/en/latest/about/license/
