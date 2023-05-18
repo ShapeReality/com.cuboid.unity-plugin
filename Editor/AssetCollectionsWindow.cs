@@ -26,6 +26,8 @@ namespace Cuboid.UnityPlugin
         private const string k_Asset = "asset";
         private const string k_Title = "title";
 
+        private const string k_SelectedCollectionKey = "selected-collection";
+
         private List<RealityAssetCollection> _collections = new();
         private Dictionary<RealityAssetCollection, Sprite> _thumbnailsCache = new();
         private RealityAssetCollection _selectedCollection;
@@ -33,7 +35,7 @@ namespace Cuboid.UnityPlugin
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
-        private ListView _assetsView;
+        private ListView _assetsList;
         private Texture2D _emptyTexture;
         
         [MenuItem("Cuboid/Asset Collections")]
@@ -70,6 +72,10 @@ namespace Cuboid.UnityPlugin
         private void Awake()
         {
             LoadAssetCollectionsInProject();
+            //_selectedCollection
+            string selectedCollectionName = EditorPrefs.GetString(k_SelectedCollectionKey);
+            _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
+            Debug.Log($"name: {selectedCollectionName}, collection: {_selectedCollection}");
         }
 
         private void InitializeUI()
@@ -104,9 +110,9 @@ namespace Cuboid.UnityPlugin
         {
             LoadAssetCollectionsInProject();
             _collectionsList.RefreshItems();
-            if (_assetsView != null)
+            if (_assetsList != null)
             {
-                _assetsView.RefreshItems();
+                _assetsList.RefreshItems();
             }
             SetSelection();
         }
@@ -158,6 +164,7 @@ namespace Cuboid.UnityPlugin
             splitView.Add(UI_Collections());
             _collectionView = new VisualElement();
             splitView.Add(_collectionView);
+            UI_Collection();
         }
 
         private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
@@ -168,6 +175,8 @@ namespace Cuboid.UnityPlugin
             {
                 Selection.activeObject = _selectedCollection;
             }
+
+            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection.name);
 
             UI_Collection();
         }
@@ -180,7 +189,9 @@ namespace Cuboid.UnityPlugin
 
             _collectionsList = new ListView()
             {
+                viewDataKey = "collectionsList",
                 fixedItemHeight = 30,
+                selectedIndex = _collections.IndexOf(_selectedCollection),
                 makeItem = () =>
                 {
                     VisualElement element = new VisualElement();
@@ -269,8 +280,10 @@ namespace Cuboid.UnityPlugin
 
             });
 
-            _assetsView = new ListView()
+            _assetsList = new ListView()
             {
+                viewDataKey = _selectedCollection.name + "_assetsList",
+                selectionType = SelectionType.Multiple,
                 headerTitle = "Assets",
                 showFoldoutHeader = true,
                 showAddRemoveFooter = true,
@@ -301,7 +314,7 @@ namespace Cuboid.UnityPlugin
                 },
                 itemsSource = _selectedCollection.Assets
             };
-            _collectionView.Add(_assetsView);
+            _collectionView.Add(_assetsList);
         }
 
         private void LoadAssetCollectionsInProject()

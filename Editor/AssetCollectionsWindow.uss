@@ -13,7 +13,7 @@ VisualElement {}
     margin-left: 1px;
     margin-right: 2px;
     flex-grow: 0;
-    flex-shrink: 1;
+    flex-shrink: 0;
 }
 
 .collection-item Label
@@ -26,12 +26,15 @@ VisualElement {}
 .asset
 {
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: flex-start;
 }
 
 .asset Image
 {
-
+    width: 58px;
+    margin-right: 2px;
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 .asset Label
@@ -77,6 +80,8 @@ Toolbar
     margin-left: 2px;
     margin-right: 2px;
     width: 28px;
+    flex-grow: 0;
+    flex-shrink: 0;
 }
 
 #CollectionButtons
