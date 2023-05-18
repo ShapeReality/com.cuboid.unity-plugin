@@ -36,5 +36,29 @@ Toolbar
 
 #AssetCollectionsToolbar
 {
-    height: 40px;
+    height: 30px;
+}
+
+#CollectionHeader
+{
+    height: 30px;
+}
+
+#CollectionHeader Label
+{
+    font-size: 16px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+}
+
+#TitleWithThumbnail
+{
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+#TitleWithThumbnail Image
+{
+    padding: 4px;
+    width: 30px;
 }

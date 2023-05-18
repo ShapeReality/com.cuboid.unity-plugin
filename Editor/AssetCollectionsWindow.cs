@@ -11,6 +11,9 @@ namespace Cuboid.UnityPlugin
 {
     public class AssetCollectionsWindow : EditorWindow
     {
+        private const string k_ShapeRealityUrl = "https://shapereality.io";
+        private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
+        private const string k_ManualUrl = "https://cuboid.readthedocs.io";
         private const string k_PackagePath = "Packages/com.cuboid.unity-plugin";
         private const string k_StyleSheetPath = "Editor/AssetCollectionsWindow.uss";
         private const string k_DarkIconPath = "Editor/cuboid_dark_icon.png";
@@ -123,7 +126,7 @@ namespace Cuboid.UnityPlugin
                 name = "AddMenu",
                 text = "Add"
             };
-            addMenu.menu.AppendAction("Create New Asset Collection", (a) => { });
+            addMenu.menu.AppendAction("Create New Asset Collection", (_) => { });
             toolbar.Add(addMenu);
 
             toolbar.Add(new Image()
@@ -136,10 +139,10 @@ namespace Cuboid.UnityPlugin
             {
                 text = "Help"
             };
-            helpMenu.menu.AppendAction("Cuboid Manual", (a) => { });
-            helpMenu.menu.AppendAction("License", (a) => { });
+            helpMenu.menu.AppendAction("Cuboid Manual", (_) => { Application.OpenURL(k_ManualUrl); });
+            helpMenu.menu.AppendAction("License", (_) => { Application.OpenURL(k_LicenseUrl); });
             helpMenu.menu.AppendSeparator();
-            helpMenu.menu.AppendAction("shapereality.io", (a) => { });
+            helpMenu.menu.AppendAction("shapereality.io", (_) => { Application.OpenURL(k_ShapeRealityUrl); });
             toolbar.Add(helpMenu);
 
             TwoPaneSplitView splitView = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
@@ -206,15 +209,21 @@ namespace Cuboid.UnityPlugin
 
             if (_selectedCollection == null) { return; }
 
-            _collectionView.Add(new Image()
+            Toolbar header = new Toolbar() { name = "CollectionHeader" };
+            _collectionView.Add(header);
+
+            VisualElement titleWithThumbnail = new VisualElement() { name = "TitleWithThumbnail"};
+            titleWithThumbnail.Add(new Image()
             {
                 scaleMode = ScaleMode.ScaleToFit,
                 sprite = GetCollectionPreviewSprite(_selectedCollection)
             });
-            _collectionView.Add(new Label(_selectedCollection.name)
+            titleWithThumbnail.Add(new Label(_selectedCollection.name)
             {
             });
-            _collectionView.Add(new Button(() =>
+            header.Add(titleWithThumbnail);
+
+            header.Add(new Button(() =>
             {
                 _selectedCollection.Build();
             })
