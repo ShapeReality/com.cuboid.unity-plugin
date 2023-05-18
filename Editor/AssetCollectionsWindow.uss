@@ -2,7 +2,6 @@ VisualElement {}
 
 .collection-item
 {
-    -unity-font-style: bold;
     flex-direction: row;
     justify-content: flex-start;
     align-content: flex-start;
@@ -10,8 +9,8 @@ VisualElement {}
 
 .collection-item Image
 {
-    width: 20px;
-    margin-left: 2px;
+    width: 28px;
+    margin-left: 1px;
     margin-right: 2px;
     flex-grow: 0;
     flex-shrink: 1;
@@ -21,6 +20,22 @@ VisualElement {}
 {
     flex-shrink: 1;
     flex-grow: 1;
+    -unity-text-align: middle-left;
+}
+
+.asset
+{
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.asset Image
+{
+
+}
+
+.asset Label
+{
     -unity-text-align: middle-left;
 }
 
@@ -59,6 +74,19 @@ Toolbar
 
 #TitleWithThumbnail Image
 {
-    padding: 4px;
-    width: 30px;
+    margin-left: 2px;
+    margin-right: 2px;
+    width: 28px;
+}
+
+#CollectionButtons
+{
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+#CollectionButtons Button
+{
+    align-items: center;
+    justify-content: center;
 }

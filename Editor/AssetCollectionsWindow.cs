@@ -23,6 +23,7 @@ namespace Cuboid.UnityPlugin
         private const string k_CollectionsView = "collections-view";
         private const string k_CollectionView = "collection-view";
         private const string k_CollectionItem = "collection-item";
+        private const string k_Asset = "asset";
         private const string k_Title = "title";
 
         private List<RealityAssetCollection> _collections = new();
@@ -32,6 +33,7 @@ namespace Cuboid.UnityPlugin
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
+        private ListView _assetsView;
         private Texture2D _emptyTexture;
         
         [MenuItem("Cuboid/Asset Collections")]
@@ -102,6 +104,10 @@ namespace Cuboid.UnityPlugin
         {
             LoadAssetCollectionsInProject();
             _collectionsList.RefreshItems();
+            if (_assetsView != null)
+            {
+                _assetsView.RefreshItems();
+            }
             SetSelection();
         }
 
@@ -190,7 +196,7 @@ namespace Cuboid.UnityPlugin
                 {
                     RealityAssetCollection collection = _collections[index];
                     Image image = item.Q<Image>();
-                    image.sprite = GetCollectionPreviewSprite(collection);
+                    image.image = GetCollectionThumbnail(collection);
                     Label label = item.Q<Label>();
                     label.text = collection.name;
                 },
@@ -216,33 +222,86 @@ namespace Cuboid.UnityPlugin
             titleWithThumbnail.Add(new Image()
             {
                 scaleMode = ScaleMode.ScaleToFit,
-                sprite = GetCollectionPreviewSprite(_selectedCollection)
+                image = GetCollectionThumbnail(_selectedCollection)
             });
             titleWithThumbnail.Add(new Label(_selectedCollection.name)
             {
             });
             header.Add(titleWithThumbnail);
 
-            header.Add(new Button(() =>
+            VisualElement buttons = new VisualElement() { name = "CollectionButtons" };
+            header.Add(buttons);
+
+            Button refreshButton = new Button(() => { OnProjectChange(); });
+            refreshButton.Add(new Image()
+            {
+                image = EditorGUIUtility.IconContent("Refresh").image
+            });
+            buttons.Add(refreshButton);
+            buttons.Add(new Button(() =>
             {
                 _selectedCollection.Build();
             })
             {
                 text = "Build..."
             });
-            ListView assets = new ListView()
+            Button moreButton = new Button(() =>
             {
+                GenericMenu moreMenu = new GenericMenu();
+                moreMenu.AddItem(new GUIContent("Duplicate"), false, () => { });
+                moreMenu.AddItem(new GUIContent("Delete"), false, () => { });
+
+                moreMenu.ShowAsContext();
+            });
+            moreButton.Add(new Image()
+            {
+                image = EditorGUIUtility.IconContent("_Menu").image
+            });
+            buttons.Add(moreButton);
+
+            _collectionView.Add(new TextField(0, false, false, '.')
+            {
+              
+            });
+
+            _collectionView.Add(new TextField(0, false, false, '.')
+            {
+
+            });
+
+            _assetsView = new ListView()
+            {
+                headerTitle = "Assets",
+                showFoldoutHeader = true,
+                showAddRemoveFooter = true,
+                showBoundCollectionSize = true,
+                showBorder = true,
+                reorderable = true,
+                reorderMode = ListViewReorderMode.Animated,
+                fixedItemHeight = 60,
+                showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = () =>
                 {
-                    return new Label();
-                    //VisualElement visualElement
+                    VisualElement element = new VisualElement();
+                    element.AddToClassList(k_Asset);
+                    element.Add(new Image()
+                    {
+                        scaleMode = ScaleMode.ScaleToFit
+                    });
+                    element.Add(new Label());
+                    return element;
                 },
                 bindItem = (item, index) =>
                 {
-
+                    GameObject asset = _selectedCollection.Assets[index];
+                    Image image = item.Q<Image>();
+                    image.image = GetAssetThumbnail(asset);
+                    Label label = item.Q<Label>();
+                    label.text = asset != null ? asset.name : "None (Game Object)";
                 },
                 itemsSource = _selectedCollection.Assets
             };
+            _collectionView.Add(_assetsView);
         }
 
         private void LoadAssetCollectionsInProject()
@@ -262,36 +321,20 @@ namespace Cuboid.UnityPlugin
 
         #region Thumbnails
 
-        private Sprite GetAssetPreviewSprite(GameObject asset)
-        {
-            return CreateSprite(GetAssetPreviewTexture(asset));
-        }
-
-        private Sprite GetCollectionPreviewSprite(RealityAssetCollection collection)
-        {
-            return CreateSprite(GetCollectionPreviewTexture(collection));
-        }
-
-        private Sprite CreateSprite(Texture2D texture)
-        {
-            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.zero);
-            return sprite;
-        }
-
-        private Texture2D GetAssetPreviewTexture(GameObject asset)
+        private Texture GetAssetThumbnail(GameObject asset)
         {
             if (asset == null) { return _emptyTexture; }
             return AssetPreview.GetAssetPreview(asset);
         }
 
-        private Texture2D GetCollectionPreviewTexture(RealityAssetCollection collection)
+        private Texture GetCollectionThumbnail(RealityAssetCollection collection)
         {
-            Texture2D preview = _emptyTexture;
+            Texture preview = _emptyTexture;
             if (collection.Assets.Count > 0)
             {
                 // get the preview image of the first asset in the collection
                 GameObject asset = collection.Assets[0];
-                preview = GetAssetPreviewTexture(asset);
+                preview = GetAssetThumbnail(asset);
             }
             return preview;
         }
