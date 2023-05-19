@@ -103,8 +103,8 @@ namespace Cuboid.UnityPlugin
             if (selectedCollection != null)
             {
                 _selectedCollection = selectedCollection;
+                SetSelection();
             }
-            SetSelection();
         }
 
         private void OnProjectChange()
@@ -205,12 +205,11 @@ namespace Cuboid.UnityPlugin
             foreach (int index in indices)
             {
                 indicesList.Add(index);
-                Debug.Log(index);
                 selection[i++] = _selectedCollection.Assets[index];
             }
 
             // set the selection
-            //Selection.objects = selection;
+            Selection.objects = selection;
 
             // store the selection
             EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, JsonUtility.ToJson(new IntList(indicesList)));
