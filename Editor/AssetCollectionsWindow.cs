@@ -27,6 +27,7 @@ namespace Cuboid.UnityPlugin
         private const string k_Title = "title";
 
         private const string k_SelectedCollectionKey = "selected-collection";
+        private const string k_SelectedAssetsKey = "selected-assets_";
 
         private List<RealityAssetCollection> _collections = new();
         private Dictionary<RealityAssetCollection, Sprite> _thumbnailsCache = new();
@@ -72,7 +73,7 @@ namespace Cuboid.UnityPlugin
         private void Awake()
         {
             LoadAssetCollectionsInProject();
-            //_selectedCollection
+            
             string selectedCollectionName = EditorPrefs.GetString(k_SelectedCollectionKey);
             _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
             Debug.Log($"name: {selectedCollectionName}, collection: {_selectedCollection}");
@@ -162,9 +163,12 @@ namespace Cuboid.UnityPlugin
             rootVisualElement.styleSheets.Add(_styleSheet);
             
             splitView.Add(UI_Collections());
+            
             _collectionView = new VisualElement();
             splitView.Add(_collectionView);
             UI_Collection();
+
+            SetSelection();
         }
 
         private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
@@ -181,6 +185,50 @@ namespace Cuboid.UnityPlugin
             UI_Collection();
         }
 
+        [System.Serializable]
+        public class IntList
+        {
+            public List<int> Value;
+
+            public IntList(List<int> value)
+            {
+                Value = value;
+            }
+        }
+
+        private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
+        {
+            Object[] selection = new Object[indices.Count()];
+
+            List<int> indicesList = new List<int>();
+            int i = 0;
+            foreach (int index in indices)
+            {
+                indicesList.Add(index);
+                Debug.Log(index);
+                selection[i++] = _selectedCollection.Assets[index];
+            }
+
+            // set the selection
+            //Selection.objects = selection;
+
+            // store the selection
+            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, JsonUtility.ToJson(new IntList(indicesList)));
+        }
+
+        //private void OnAssetsSelectionChange(IEnumerable<object> selectedItems)
+        //{
+        //    // select the assets
+        //    Object[] selection = new Object[selectedItems.Count()];
+        //    int i = 0;
+        //    foreach (object item in selectedItems)
+        //    {
+        //        selection[i++] = item as Object;
+        //    }
+
+        //    Selection.objects = selection;
+        //}
+
         private VisualElement UI_Collections()
         {
             // collections
@@ -191,7 +239,6 @@ namespace Cuboid.UnityPlugin
             {
                 viewDataKey = "collectionsList",
                 fixedItemHeight = 30,
-                selectedIndex = _collections.IndexOf(_selectedCollection),
                 makeItem = () =>
                 {
                     VisualElement element = new VisualElement();
@@ -270,16 +317,6 @@ namespace Cuboid.UnityPlugin
             });
             buttons.Add(moreButton);
 
-            _collectionView.Add(new TextField(0, false, false, '.')
-            {
-              
-            });
-
-            _collectionView.Add(new TextField(0, false, false, '.')
-            {
-
-            });
-
             _assetsList = new ListView()
             {
                 viewDataKey = _selectedCollection.name + "_assetsList",
@@ -314,7 +351,17 @@ namespace Cuboid.UnityPlugin
                 },
                 itemsSource = _selectedCollection.Assets
             };
+            
             _collectionView.Add(_assetsList);
+
+            string json = EditorPrefs.GetString(k_SelectedAssetsKey + _selectedCollection.name, "");
+            if (json != "")
+            {
+                List<int> indices = JsonUtility.FromJson<IntList>(json).Value;
+                _assetsList.SetSelection(indices);
+            }
+            
+            _assetsList.onSelectedIndicesChange += OnAssetsSelectedIndicesChange;
         }
 
         private void LoadAssetCollectionsInProject()
