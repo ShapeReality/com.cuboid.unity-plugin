@@ -29,6 +29,9 @@ namespace Cuboid.UnityPlugin
         private const string k_AssetMetadata = "asset-metadata";
         private const string k_AssetMetadataTitle = "asset-metadata-title";
         private const string k_AssetMetadataSubscript = "asset-metadata-subscript";
+        private const string k_AssetMetadataSubscript2 = "asset-metadata-subscript2";
+        private const string k_AssetMetadataMiniThumbnail = "asset-metadata-mini-thumbnail";
+        private const string k_AssetMetadataObjectType = "asset-metadata-object-type";
 
         private const string k_SelectedCollectionKey = "selected-collection";
         private const string k_SelectedAssetsKey = "selected-assets_";
@@ -219,19 +222,6 @@ namespace Cuboid.UnityPlugin
             EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, JsonUtility.ToJson(new IntList(indicesList)));
         }
 
-        //private void OnAssetsSelectionChange(IEnumerable<object> selectedItems)
-        //{
-        //    // select the assets
-        //    Object[] selection = new Object[selectedItems.Count()];
-        //    int i = 0;
-        //    foreach (object item in selectedItems)
-        //    {
-        //        selection[i++] = item as Object;
-        //    }
-
-        //    Selection.objects = selection;
-        //}
-
         private VisualElement UI_Collections()
         {
             // collections
@@ -309,7 +299,6 @@ namespace Cuboid.UnityPlugin
             Button moreButton = new Button(() =>
             {
                 GenericMenu moreMenu = new GenericMenu();
-                moreMenu.AddItem(new GUIContent("Duplicate"), false, () => { });
                 moreMenu.AddItem(new GUIContent("Delete"), false, () => { });
 
                 moreMenu.ShowAsContext();
@@ -351,6 +340,22 @@ namespace Cuboid.UnityPlugin
                     Label subscript = new Label();
                     subscript.AddToClassList(k_AssetMetadataSubscript);
                     metadata.Add(subscript);
+
+                    VisualElement subscript2 = new VisualElement();
+                    subscript2.AddToClassList(k_AssetMetadataSubscript2);
+                    metadata.Add(subscript2);
+
+                    Image miniThumbnail = new Image()
+                    {
+                        scaleMode = ScaleMode.ScaleToFit
+                    };
+                    miniThumbnail.AddToClassList(k_AssetMetadataMiniThumbnail);
+                    subscript2.Add(miniThumbnail);
+
+                    Label objectType = new Label();
+                    objectType.AddToClassList(k_AssetMetadataObjectType);
+                    subscript2.Add(objectType);
+
                     return element;
                 },
                 bindItem = (item, index) =>
@@ -363,7 +368,14 @@ namespace Cuboid.UnityPlugin
 
                     Label metadataSubscript = item.Q<Label>(className: k_AssetMetadataSubscript);
                     metadataSubscript.text = asset != null ? AssetDatabase.GetAssetPath(asset) : "";
-                    // add asset size
+
+                    Image metadataMiniThumbnail = item.Q<Image>(className: k_AssetMetadataMiniThumbnail);
+                    metadataMiniThumbnail.image = asset != null ? AssetPreview.GetMiniThumbnail(asset) : null;
+
+                    Label metadataObjectType = item.Q<Label>(className: k_AssetMetadataObjectType);
+                    
+                    
+                    metadataObjectType.text = asset != null ? AssetDatabase.GetAssetPath(asset).EndsWith(".prefab") ? "Prefab" : "Imported Model" : null;
                 },
                 itemsSource = _selectedCollection.Assets
             };

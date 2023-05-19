@@ -105,5 +105,22 @@ Toolbar
 .asset-metadata-subscript
 {
     opacity: 0.5;
+}
 
+.asset-metadata-subscript2
+{
+    height: 18px;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.asset-metadata-subscript2 Image
+{
+    width: 18px;
+}
+
+.asset-metadata-subscript2 Label
+{
+    opacity: 1;
 }
