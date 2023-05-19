@@ -23,25 +23,6 @@ VisualElement {}
     -unity-text-align: middle-left;
 }
 
-.asset
-{
-    flex-direction: row;
-    justify-content: flex-start;
-}
-
-.asset Image
-{
-    width: 58px;
-    margin-right: 2px;
-    flex-grow: 0;
-    flex-shrink: 0;
-}
-
-.asset Label
-{
-    -unity-text-align: middle-left;
-}
-
 Toolbar
 {
     justify-content: space-between;
@@ -94,4 +75,35 @@ Toolbar
 {
     align-items: center;
     justify-content: center;
+}
+
+.asset
+{
+    flex-direction: row;
+    justify-content: flex-start;
+}
+
+.asset Image
+{
+    width: 58px;
+    margin-right: 2px;
+    flex-grow: 0;
+    flex-shrink: 0;
+}
+
+.asset-metadata
+{
+    flex-direction: column;
+    justify-content: flex-start;
+}
+
+.asset-metadata-title
+{
+    -unity-font-style: bold;
+}
+
+.asset-metadata-subscript
+{
+    opacity: 0.5;
+
 }

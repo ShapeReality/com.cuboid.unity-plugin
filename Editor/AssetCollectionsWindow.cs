@@ -6,6 +6,7 @@ using UnityEditor;
 using System.Linq;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using System.Reflection;
 
 namespace Cuboid.UnityPlugin
 {
@@ -25,6 +26,9 @@ namespace Cuboid.UnityPlugin
         private const string k_CollectionItem = "collection-item";
         private const string k_Asset = "asset";
         private const string k_Title = "title";
+        private const string k_AssetMetadata = "asset-metadata";
+        private const string k_AssetMetadataTitle = "asset-metadata-title";
+        private const string k_AssetMetadataSubscript = "asset-metadata-subscript";
 
         private const string k_SelectedCollectionKey = "selected-collection";
         private const string k_SelectedAssetsKey = "selected-assets_";
@@ -337,7 +341,16 @@ namespace Cuboid.UnityPlugin
                     {
                         scaleMode = ScaleMode.ScaleToFit
                     });
-                    element.Add(new Label());
+                    VisualElement metadata = new VisualElement();
+                    metadata.AddToClassList(k_AssetMetadata);
+                    element.Add(metadata);
+                    Label title = new Label();
+                    title.AddToClassList(k_AssetMetadataTitle);
+                    metadata.Add(title);
+
+                    Label subscript = new Label();
+                    subscript.AddToClassList(k_AssetMetadataSubscript);
+                    metadata.Add(subscript);
                     return element;
                 },
                 bindItem = (item, index) =>
@@ -345,8 +358,12 @@ namespace Cuboid.UnityPlugin
                     GameObject asset = _selectedCollection.Assets[index];
                     Image image = item.Q<Image>();
                     image.image = GetAssetThumbnail(asset);
-                    Label label = item.Q<Label>();
-                    label.text = asset != null ? asset.name : "None (Game Object)";
+                    Label metadataTitle = item.Q<Label>(className: k_AssetMetadataTitle);
+                    metadataTitle.text = asset != null ? asset.name : "None (Game Object)";
+
+                    Label metadataSubscript = item.Q<Label>(className: k_AssetMetadataSubscript);
+                    metadataSubscript.text = asset != null ? AssetDatabase.GetAssetPath(asset) : "";
+                    // add asset size
                 },
                 itemsSource = _selectedCollection.Assets
             };
