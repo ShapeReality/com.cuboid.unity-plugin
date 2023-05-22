@@ -17,7 +17,12 @@ namespace Cuboid.UnityPlugin
         public List<GameObject> Assets = new List<GameObject>();
 
         private static string _lastSelectedDirectoryPath;
-        
+
+        private void CancelBuild()
+        {
+            Debug.LogWarning($"Asset Collection {name} Build Cancelled");
+        }
+
         public void Build()
         {
             bool validPath = false;
@@ -26,6 +31,14 @@ namespace Cuboid.UnityPlugin
             while (!validPath)
             {
                 string directoryPath = EditorUtility.OpenFolderPanel("Select the folder where the Asset Collection will be built to", _lastSelectedDirectoryPath, _lastSelectedDirectoryPath);
+
+                Debug.Log(directoryPath);
+
+                if (directoryPath == "")
+                {
+                    // this means we should stop the operation because the user has canceled
+                    CancelBuild(); return;
+                }
 
                 if (!Directory.Exists(directoryPath))
                 {
@@ -44,7 +57,7 @@ namespace Cuboid.UnityPlugin
                         "Do you want to overwrite this Asset Collection? This cannot be undone. ",
                         "Overwrite", "Cancel", "Save As");
 
-                    if (choice == 1) { Debug.LogWarning($"Asset Collection {name} Build Cancelled"); return; }
+                    if (choice == 1) { CancelBuild(); return; }
                     if (choice == 0)
                     {
                         File.Delete(targetPath);

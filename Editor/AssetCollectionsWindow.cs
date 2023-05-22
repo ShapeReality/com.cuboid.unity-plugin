@@ -17,10 +17,11 @@ namespace Cuboid.UnityPlugin
         private const string k_ManualUrl = "https://cuboid.readthedocs.io";
         private const string k_PackagePath = "Packages/com.cuboid.unity-plugin";
         private const string k_StyleSheetPath = "Editor/AssetCollectionsWindow.uss";
-        private const string k_DarkIconPath = "Editor/cuboid_dark_icon.png";
-        private const string k_LightIconPath = "Editor/cuboid_light_icon.png";
-        private const string k_DarkLogoPath = "Editor/cuboid_dark.png";
-        private const string k_LightLogoPath = "Editor/cuboid_light.png";
+        private const string k_DarkIconPath = "Editor/Icons/cuboid_dark_icon.png";
+        private const string k_LightIconPath = "Editor/Icons/cuboid_light_icon.png";
+        private const string k_DarkLogoPath = "Editor/Icons/cuboid_dark.png";
+        private const string k_LightLogoPath = "Editor/Icons/cuboid_light.png";
+
         private const string k_CollectionsView = "collections-view";
         private const string k_CollectionView = "collection-view";
         private const string k_CollectionItem = "collection-item";
@@ -38,19 +39,23 @@ namespace Cuboid.UnityPlugin
 
         private List<RealityAssetCollection> _collections = new();
         private Dictionary<RealityAssetCollection, Sprite> _thumbnailsCache = new();
-        private RealityAssetCollection _selectedCollection;
 
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
         private ListView _assetsList;
         private Texture2D _emptyTexture;
-        
+
+        private RealityAssetCollection _selectedCollection;
+
         [MenuItem("Cuboid/Asset Collections")]
         public static void ShowMyEditor()
         {
             // This method is called when the user selects the menu item in the Editor
             EditorWindow wnd = GetWindow<AssetCollectionsWindow>();
+
+            wnd.minSize = new Vector2(400f, 200f);
+            wnd.Show();
 
             UpdateTitleContent(wnd);
         }
@@ -80,27 +85,22 @@ namespace Cuboid.UnityPlugin
         private void Awake()
         {
             LoadAssetCollectionsInProject();
-            
+
+            // set selection collection based on stored name in EditorPrefs
             string selectedCollectionName = EditorPrefs.GetString(k_SelectedCollectionKey);
             _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
-            Debug.Log($"name: {selectedCollectionName}, collection: {_selectedCollection}");
+
+            LoadStylesheet();
+            _emptyTexture = new Texture2D(256, 256);
         }
 
-        private void InitializeUI()
+        private void LoadStylesheet()
         {
-           if (_styleSheet == null)
+            string path = Path.Combine(k_PackagePath, k_StyleSheetPath);
+            _styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(path);
+            if (_styleSheet == null)
             {
-                string path = Path.Combine(k_PackagePath, k_StyleSheetPath);
-                _styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(path);
-                if (_styleSheet == null)
-                {
-                    Debug.LogWarning($"Could not find style sheet at {path}");
-                }
-            }
-
-            if (_emptyTexture == null)
-            {
-                _emptyTexture = new Texture2D(256, 256);
+                Debug.LogWarning($"Could not find style sheet at {path}");
             }
         }
 
@@ -109,11 +109,13 @@ namespace Cuboid.UnityPlugin
             RealityAssetCollection selectedCollection = Selection.activeObject as RealityAssetCollection;
             if (selectedCollection != null)
             {
+                // if the current active object is of type RealityAssetCollection, set the selection to it. 
                 _selectedCollection = selectedCollection;
-                SetSelection();
+                UpdateCollectionsListSelectedIndex();
             }
         }
 
+        // called when the user performs an action inside the Unity editor
         private void OnProjectChange()
         {
             LoadAssetCollectionsInProject();
@@ -122,12 +124,12 @@ namespace Cuboid.UnityPlugin
             {
                 _assetsList.RefreshItems();
             }
-            SetSelection();
+            UpdateCollectionsListSelectedIndex();
         }
 
-        private void SetSelection()
+        private void UpdateCollectionsListSelectedIndex()
         {
-            if (_selectedCollection != null)
+            if (_selectedCollection != null && _collectionsList != null)
             {
                 _collectionsList.selectedIndex = _collections.IndexOf(_selectedCollection);
             }
@@ -135,8 +137,6 @@ namespace Cuboid.UnityPlugin
 
         private void CreateGUI()
         {
-            InitializeUI();
-
             // top bar
             Toolbar toolbar = new Toolbar() { name = "AssetCollectionsToolbar"};
             rootVisualElement.Add(toolbar);
@@ -169,13 +169,13 @@ namespace Cuboid.UnityPlugin
             rootVisualElement.Add(splitView);
             rootVisualElement.styleSheets.Add(_styleSheet);
             
-            splitView.Add(UI_Collections());
+            splitView.Add(RenderCollectionsUI());
             
             _collectionView = new VisualElement();
             splitView.Add(_collectionView);
-            UI_Collection();
+            RenderSelectedCollectionUI();
 
-            SetSelection();
+            UpdateCollectionsListSelectedIndex();
         }
 
         private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
@@ -189,18 +189,7 @@ namespace Cuboid.UnityPlugin
 
             EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection.name);
 
-            UI_Collection();
-        }
-
-        [System.Serializable]
-        public class IntList
-        {
-            public List<int> Value;
-
-            public IntList(List<int> value)
-            {
-                Value = value;
-            }
+            RenderSelectedCollectionUI();
         }
 
         private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
@@ -219,18 +208,21 @@ namespace Cuboid.UnityPlugin
             Selection.objects = selection;
 
             // store the selection
-            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, JsonUtility.ToJson(new IntList(indicesList)));
+            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, indicesList.ToJson());
         }
 
-        private VisualElement UI_Collections()
+        /// <summary>
+        /// Render collections UI. Returns the element so that it can be added
+        /// in the <see cref="CreateGUI"/> method. 
+        /// </summary> 
+        private VisualElement RenderCollectionsUI()
         {
-            // collections
             VisualElement collectionsView = new VisualElement();
             collectionsView.AddToClassList(k_CollectionsView);
 
             _collectionsList = new ListView()
             {
-                viewDataKey = "collectionsList",
+                viewDataKey = "collections-list", // required for data persistence
                 fixedItemHeight = 30,
                 makeItem = () =>
                 {
@@ -254,13 +246,15 @@ namespace Cuboid.UnityPlugin
                 itemsSource = _collections
             };
             _collectionsList.onSelectionChange += OnCollectionSelectionChange;
-
             collectionsView.Add(_collectionsList);
-
             return collectionsView;
         }
 
-        private void UI_Collection()
+        /// <summary>
+        /// Clears the view and renders the currently selected collection.
+        /// If no collection is selected, it will not render anything. 
+        /// </summary>
+        private void RenderSelectedCollectionUI()
         {
             _collectionView.Clear();
 
@@ -382,16 +376,21 @@ namespace Cuboid.UnityPlugin
             
             _collectionView.Add(_assetsList);
 
+            // Sets the selected index
             string json = EditorPrefs.GetString(k_SelectedAssetsKey + _selectedCollection.name, "");
             if (json != "")
             {
-                List<int> indices = JsonUtility.FromJson<IntList>(json).Value;
+                List<int> indices = json.ToIntList();
                 _assetsList.SetSelection(indices);
             }
             
             _assetsList.onSelectedIndicesChange += OnAssetsSelectedIndicesChange;
         }
 
+        /// <summary>
+        /// Loads all asset collections of type <see cref="RealityAssetCollection"/>
+        /// that exist in the Assets folder. 
+        /// </summary>
         private void LoadAssetCollectionsInProject()
         {
             string[] guids = AssetDatabase.FindAssets("t:RealityAssetCollection");
