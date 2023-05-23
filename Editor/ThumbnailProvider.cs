@@ -20,15 +20,16 @@ namespace Cuboid.UnityPlugin
         /// Cache directory relative to the Assets directory of the project. 
         /// </summary>
         private const string k_ThumbnailCacheDirectory = "Assets/Plugins/Cuboid/Cache/Thumbnails";
+        private const int k_ThumbnailSize = 128;
 
-        //private static Dictionary<string, Texture> _
+        private static Dictionary<string, Texture> _thumbnailsCache = new Dictionary<string, Texture>();
 
         /// <summary>
-        /// Empties the cache, so that the 
+        /// Empties the cache
         /// </summary>
-        private static void EmptyCache()
+        public static void EmptyCache()
         {
-
+            _thumbnailsCache.Clear();
         }
 
         private static void EnsureThumbnailCacheDirectoryExists()
@@ -48,14 +49,34 @@ namespace Cuboid.UnityPlugin
         /// <param name="gameObject"></param>
         public static Texture GetThumbnail(GameObject gameObject)
         {
-            EnsureThumbnailCacheDirectoryExists();
+            Debug.Assert(_thumbnailsCache != null);
 
-            // get the directory
+            if (gameObject == null) { return null; }
+
+            // Try to get the thumbnail from the cache
+            string assetPath = AssetDatabase.GetAssetPath(gameObject);
+            string guid = AssetDatabase.AssetPathToGUID(assetPath);
+            if (_thumbnailsCache.TryGetValue(guid, out Texture value))
+            {
+                if (value != null)
+                {
+                    return value;
+                }
+                _thumbnailsCache.Remove(guid); // remove if value is null
+            }
 
             ThumbnailRenderer.BackgroundColor = Color.clear;
             ThumbnailRenderer.UseLocalBounds = true;
             ThumbnailRenderer.OrthographicMode = true;
-            return ThumbnailRenderer.GenerateModelPreview(gameObject, 512, 512);
+            Texture thumbnail = ThumbnailRenderer.GenerateModelPreview(gameObject, k_ThumbnailSize, k_ThumbnailSize);
+
+            // Store the thumbnail in the cache
+            if (thumbnail != null)
+            {
+                _thumbnailsCache[guid] = thumbnail;
+            }
+
+            return thumbnail;
         }
     }
 }

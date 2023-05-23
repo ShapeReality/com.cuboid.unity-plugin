@@ -46,7 +46,6 @@ namespace Cuboid.UnityPlugin
         private const string k_SelectedAssetsKey = "selected-assets_";
 
         private List<RealityAssetCollection> _collections = new();
-        private Dictionary<RealityAssetCollection, Sprite> _thumbnailsCache = new();
 
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
@@ -140,6 +139,7 @@ namespace Cuboid.UnityPlugin
         // called when the user performs an action inside the Unity editor
         private void OnProjectChange()
         {
+            ThumbnailProvider.EmptyCache();
             LoadAssetCollectionsInProject();
             if (_collectionsList != null) { _collectionsList.RefreshItems(); }
             if (_assetsList != null) { _assetsList.RefreshItems(); }
