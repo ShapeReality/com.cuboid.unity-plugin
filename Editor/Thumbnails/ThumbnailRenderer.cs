@@ -26,7 +26,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Rendering;
+using UnityEngine.Rendering;    
+using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
 
 public static class ThumbnailRenderer
@@ -95,10 +96,13 @@ public static class ThumbnailRenderer
     }
 
     private const string k_SkyboxMaterialPath = "Materials/M_Skybox";
+    private const string k_CameraRigPrefabPath = "Prefabs/CameraRig";
+    private const string k_PipelineSettingsPath = "Settings/URP_PipelineSettings";
+    private const string k_RendererPath = "Settings/URP_Renderer";
     private const string k_InternalCameraName = "Cuboid_ThumbnaiRenderer_InternalCamera";
 
-    private const int PREVIEW_LAYER = 1;
-    private static Vector3 PREVIEW_POSITION = new Vector3(-250f, -250f, -250f);
+    private const int k_PreviewLayerIndex = 0;
+    private static Vector3 k_PreviewPosition = new Vector3(-250f, -250f, -250f);
 
     private static Camera renderCamera;
     private static readonly CameraSetup cameraSetup = new CameraSetup();
@@ -109,33 +113,42 @@ public static class ThumbnailRenderer
     private static readonly List<Renderer> renderersList = new List<Renderer>(64);
     private static readonly List<int> layersList = new List<int>(64);
 
-    private static float _storedAmbientIntensity = 1.0f;
-    private static AmbientMode _storedAmbientMode = AmbientMode.Skybox;
-    private static Material _storedSkybox = null;
-
     private static Camera _internalCamera = null;
     private static Camera InternalCamera
     {
         get
         {
+            _internalCamera = null;
             if (_internalCamera == null)
             {
-                // first try to find a GameObject with the k_InternalCameraName
+                // first try to find a GameObject with the k_InternalCameraName and destroy it
                 GameObject go = GameObject.Find(k_InternalCameraName);
                 if (go != null)
                 {
-                    Debug.Log("used preexisting camera");
-                    _internalCamera = go.GetComponent<Camera>();
-                    return _internalCamera;
+                    GameObject.DestroyImmediate(go);
                 }
 
-                // otherwise, create a new one.
+                // then, create a new one
+                GameObject prefab = Resources.Load<GameObject>(k_CameraRigPrefabPath);
+                if (prefab == null)
+                {
+                    throw new Exception($"Camera Rig Prefab not found at {k_CameraRigPrefabPath}");
+                }
 
-                _internalCamera = new GameObject(k_InternalCameraName).AddComponent<Camera>();
+                GameObject cameraRig = GameObject.Instantiate(prefab, null, false);
+                cameraRig.name = k_InternalCameraName;
+                Camera camera = cameraRig.GetComponentInChildren<Camera>();
+                if (camera == null)
+                {
+                    throw new Exception("Camera Rig Prefab does not contain Camera component");
+                }
+                _internalCamera = camera;
+
                 _internalCamera.enabled = false;
+                _internalCamera = camera;
                 _internalCamera.nearClipPlane = 0.01f;
-                _internalCamera.cullingMask = 1 << PREVIEW_LAYER;
-                _internalCamera.gameObject.hideFlags = HideFlags.HideAndDontSave;
+                _internalCamera.cullingMask = 1 << k_PreviewLayerIndex;
+                //_internalCamera.gameObject.hideFlags = HideFlags.HideAndDontSave;
             }
 
             return _internalCamera;
@@ -200,13 +213,18 @@ public static class ThumbnailRenderer
 
     public static Texture2D GenerateModelPreview(GameObject gameObject, int width = 64, int height = 64, bool shouldIgnoreParticleSystems = true)
     {
-        return GenerateModelPreviewInternal(gameObject, null, null, width, height, shouldIgnoreParticleSystems);
+        return GenerateModelPreviewInternal(gameObject, null, width, height, shouldIgnoreParticleSystems);
     }
 
     public static void GenerateModelPreviewAsync(Action<Texture2D> callback, GameObject gameObject, int width = 64, int height = 64, bool shouldIgnoreParticleSystems = true)
     {
-        GenerateModelPreviewInternal(gameObject, null, null, width, height, shouldIgnoreParticleSystems, callback);
+        GenerateModelPreviewInternal(gameObject, null, width, height, shouldIgnoreParticleSystems, callback);
     }
+
+    private static float _storedAmbientIntensity = 1.0f;
+    private static AmbientMode _storedAmbientMode = AmbientMode.Skybox;
+    private static Material _storedSkybox = null;
+    private static UniversalRenderPipelineAsset _storedPipelineSettings;
 
     /// <summary>
     /// Function that stores the scene settings, so that they can be set again when
@@ -221,6 +239,7 @@ public static class ThumbnailRenderer
         _storedAmbientIntensity = RenderSettings.ambientIntensity;
         _storedAmbientMode = RenderSettings.ambientMode;
         _storedSkybox = RenderSettings.skybox;
+        _storedPipelineSettings = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
     }
 
     private static void LoadSceneSettings()
@@ -228,9 +247,13 @@ public static class ThumbnailRenderer
         RenderSettings.ambientIntensity = _storedAmbientIntensity;
         RenderSettings.ambientMode = _storedAmbientMode;
         RenderSettings.skybox = _storedSkybox;
+        if (_storedPipelineSettings != null)
+        {
+            GraphicsSettings.defaultRenderPipeline = _storedPipelineSettings;
+        }
     }
 
-    private static Texture2D GenerateModelPreviewInternal(GameObject gameObject, Shader shader, string replacementTag, int width, int height, bool shouldIgnoreParticleSystems, Action<Texture2D> asyncCallback = null)
+    private static Texture2D GenerateModelPreviewInternal(GameObject gameObject, string replacementTag, int width, int height, bool shouldIgnoreParticleSystems, Action<Texture2D> asyncCallback = null)
     {
         if (gameObject == null)
         {
@@ -241,8 +264,12 @@ public static class ThumbnailRenderer
 
         Material skyboxMaterial = Resources.Load<Material>(k_SkyboxMaterialPath);
         RenderSettings.skybox = skyboxMaterial;
+        RenderSettings.ambientMode = AmbientMode.Skybox;
         DynamicGI.UpdateEnvironment();
         RenderSettings.ambientIntensity = 1.0f;
+
+        UniversalRenderPipelineAsset pipelineSettings = Resources.Load<UniversalRenderPipelineAsset>(k_PipelineSettingsPath);
+        GraphicsSettings.defaultRenderPipeline = pipelineSettings;
         
         Texture2D result = null;
 
@@ -257,7 +284,7 @@ public static class ThumbnailRenderer
         {
             SetupCamera();
             SetLayerRecursively(previewObjectTransform);
-            previewObjectTransform.SetPositionAndRotation(PREVIEW_POSITION, Quaternion.identity);
+            previewObjectTransform.SetPositionAndRotation(k_PreviewPosition, Quaternion.identity);
 
             Quaternion cameraRotation = Quaternion.LookRotation(previewObject.transform.rotation * _previewDirection, previewObject.transform.up);
             Bounds previewBounds = new Bounds();
@@ -283,15 +310,12 @@ public static class ThumbnailRenderer
                 renderTexture = RenderTexture.GetTemporary(supersampledWidth, supersampledHeight, 16);
                 RenderTexture.active = renderTexture;
                 if (_backgroundColor.a < 1f)
+                {
                     GL.Clear(true, true, _backgroundColor);
+                }
 
                 renderCamera.targetTexture = renderTexture;
-
-                if (!shader)
-                    renderCamera.Render();
-                else
-                    renderCamera.RenderWithShader(shader, replacementTag ?? string.Empty);
-
+                renderCamera.Render();
                 renderCamera.targetTexture = null;
 
                 if (supersampledWidth != width || supersampledHeight != height)
@@ -302,8 +326,9 @@ public static class ThumbnailRenderer
                         _renderTexture = RenderTexture.GetTemporary(width, height, 16);
                         RenderTexture.active = _renderTexture;
                         if (_backgroundColor.a < 1f)
+                        {
                             GL.Clear(true, true, _backgroundColor);
-
+                        }
                         Graphics.Blit(renderTexture, _renderTexture);
                     }
                     finally
@@ -324,7 +349,9 @@ public static class ThumbnailRenderer
                         {
                             result = new Texture2D(width, height, _backgroundColor.a < 1f ? TextureFormat.RGBA32 : TextureFormat.RGB24, false);
                             if (!asyncResult.hasError)
+                            {
                                 result.LoadRawTextureData(asyncResult.GetData<byte>());
+                            }
                             else
                             {
                                 Debug.LogWarning("Async thumbnail request failed, falling back to conventional method");
@@ -578,7 +605,6 @@ public static class ThumbnailRenderer
                 return false;
             }
         }
-
         return true;
     }
 
@@ -623,7 +649,7 @@ public static class ThumbnailRenderer
             cameraSetup.GetSetup(_previewRenderCamera);
             renderCamera = _previewRenderCamera;
             renderCamera.nearClipPlane = 0.01f;
-            renderCamera.cullingMask = 1 << PREVIEW_LAYER;
+            renderCamera.cullingMask = 1 << k_PreviewLayerIndex;
         }
         else
         {
@@ -649,7 +675,7 @@ public static class ThumbnailRenderer
 
     private static void SetLayerRecursively(Transform obj)
     {
-        obj.gameObject.layer = PREVIEW_LAYER;
+        obj.gameObject.layer = k_PreviewLayerIndex;
         for (int i = 0; i < obj.childCount; i++)
         {
             SetLayerRecursively(obj.GetChild(i));

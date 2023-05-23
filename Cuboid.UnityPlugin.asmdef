@@ -1,7 +1,10 @@
 {
     "name": "Cuboid.UnityPlugin",
     "rootNamespace": "Cuboid.UnityPlugin",
-    "references": [],
+    "references": [
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Universal.Editor"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

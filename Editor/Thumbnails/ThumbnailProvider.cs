@@ -55,7 +55,7 @@ namespace Cuboid.UnityPlugin
             ThumbnailRenderer.BackgroundColor = Color.clear;
             ThumbnailRenderer.UseLocalBounds = true;
             ThumbnailRenderer.OrthographicMode = true;
-            return ThumbnailRenderer.GenerateModelPreview(gameObject, 512, 512, true);
+            return ThumbnailRenderer.GenerateModelPreview(gameObject, 512, 512);
         }
     }
 }
