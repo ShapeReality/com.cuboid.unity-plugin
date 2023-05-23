@@ -53,6 +53,7 @@ namespace Cuboid.UnityPlugin
         private VisualElement _collectionView;
         private ListView _collectionsList;
         private ListView _assetsList;
+        private EditorApplication.CallbackFunction _onDelayCall;
 
         private const string k_ThumbnailSizeKey = "thumbnail-size";
         private ThumbnailSize _currentThumbnailSize = ThumbnailSize.NotInitialized;
@@ -71,16 +72,6 @@ namespace Cuboid.UnityPlugin
                 _currentThumbnailSize = value;
                 EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_currentThumbnailSize);
                 RenderSelectedCollectionUI();
-
-                // HACK: The items don't get rendered on thumbnail size change,
-                // so we need to manually change the scroll position
-                // so that it somehow magically renders...
-
-                ScrollView scrollView = _assetsList.Q<ScrollView>();
-                Vector2 s = scrollView.scrollOffset;
-                scrollView.scrollOffset = new Vector2(s.x, s.y - 1);
-                Rect contentRect = scrollView.contentRect;
-                Debug.Log($"contentRect: {contentRect}");
             }
         }
 
@@ -124,6 +115,17 @@ namespace Cuboid.UnityPlugin
             _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
 
             LoadStyleSheet();
+
+            // HACK: There is a bug in the ListView that makes it so that it doesn't render the items
+            // when changing between thumbnail sizes, so this will make sure it does.
+            // TODO: Once again, implement ListView ourselves.
+            _onDelayCall = () => { OnProjectChange(); };
+            EditorApplication.delayCall += _onDelayCall;
+        }
+
+        private void OnDestroy()
+        {
+            EditorApplication.delayCall -= _onDelayCall;
         }
 
         private void LoadStyleSheet()
