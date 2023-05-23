@@ -10,7 +10,10 @@
     "AR"
   ],
   "category": "XR",
+  "documentationUrl": "https://cuboid.readthedocs.io/",
+  "changelogUrl": "https://cuboid.readthedocs.io/en/latest/about/changelog/",
+  "licensesUrl": "https://cuboid.readthedocs.io/en/latest/about/license/",
   "dependencies": {
-    "com.unity.render-pipelines.universal": "12.1.8"
+    "com.unity.render-pipelines.universal": "12.1.0"
   }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Collections;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Linq;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using System.Reflection;
+using Object = UnityEngine.Object;
 
 namespace Cuboid.UnityPlugin
 {
@@ -51,7 +53,6 @@ namespace Cuboid.UnityPlugin
         private VisualElement _collectionView;
         private ListView _collectionsList;
         private ListView _assetsList;
-        private Texture2D _emptyTexture;
 
         private const string k_ThumbnailSizeKey = "thumbnail-size";
         private ThumbnailSize _currentThumbnailSize = ThumbnailSize.NotInitialized;
@@ -70,6 +71,16 @@ namespace Cuboid.UnityPlugin
                 _currentThumbnailSize = value;
                 EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_currentThumbnailSize);
                 RenderSelectedCollectionUI();
+
+                // HACK: The items don't get rendered on thumbnail size change,
+                // so we need to manually change the scroll position
+                // so that it somehow magically renders...
+
+                ScrollView scrollView = _assetsList.Q<ScrollView>();
+                Vector2 s = scrollView.scrollOffset;
+                scrollView.scrollOffset = new Vector2(s.x, s.y - 1);
+                Rect contentRect = scrollView.contentRect;
+                Debug.Log($"contentRect: {contentRect}");
             }
         }
 
@@ -113,7 +124,6 @@ namespace Cuboid.UnityPlugin
             _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
 
             LoadStyleSheet();
-            _emptyTexture = new Texture2D(256, 256);
         }
 
         private void LoadStyleSheet()
@@ -125,15 +135,18 @@ namespace Cuboid.UnityPlugin
             }
         }
 
+        private bool _lastSelectedNullGameObject = false;
+
         private void OnSelectionChange()
         {
             RealityAssetCollection selectedCollection = Selection.activeObject as RealityAssetCollection;
-            if (selectedCollection != null)
+            if (selectedCollection != null && !_lastSelectedNullGameObject)
             {
                 // if the current active object is of type RealityAssetCollection, set the selection to it. 
                 _selectedCollection = selectedCollection;
                 UpdateCollectionsListSelectedIndex();
             }
+            _lastSelectedNullGameObject = false;
         }
 
         // called when the user performs an action inside the Unity editor
@@ -152,6 +165,48 @@ namespace Cuboid.UnityPlugin
             {
                 _collectionsList.selectedIndex = _collections.IndexOf(_selectedCollection);
             }
+        }
+
+        private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
+        {
+            _selectedCollection = selectedItems.First() as RealityAssetCollection;
+
+            if (_selectedCollection != null)
+            {
+                Selection.activeObject = _selectedCollection;
+            }
+
+            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection.name);
+
+            RenderSelectedCollectionUI();
+        }
+
+        private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
+        {
+            Object[] selection = new Object[indices.Count()];
+
+            List<int> indicesList = new List<int>();
+            int i = 0;
+            foreach (int index in indices)
+            {
+                indicesList.Add(index);
+                selection[i++] = _selectedCollection.Assets[index];
+            }
+
+            if (selection.Length > 0 && selection[selection.Length - 1] != null)
+            {
+                // set the selection
+                Selection.objects = selection;
+            }
+            else
+            {
+                _lastSelectedNullGameObject = true; // a bit hacky, but makes sure the list view
+                // stays focused, instead of focusing the _selectedCollection. 
+                Selection.objects = new Object[] { _selectedCollection };
+            }
+
+            // store the selection
+            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, indicesList.ToJson());
         }
 
         private void CreateGUI()
@@ -195,39 +250,6 @@ namespace Cuboid.UnityPlugin
             RenderSelectedCollectionUI();
 
             UpdateCollectionsListSelectedIndex();
-        }
-
-        private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
-        {
-            _selectedCollection = selectedItems.First() as RealityAssetCollection;
-
-            if (_selectedCollection != null)
-            {
-                Selection.activeObject = _selectedCollection;
-            }
-
-            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection.name);
-
-            RenderSelectedCollectionUI();
-        }
-
-        private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
-        {
-            Object[] selection = new Object[indices.Count()];
-
-            List<int> indicesList = new List<int>();
-            int i = 0;
-            foreach (int index in indices)
-            {
-                indicesList.Add(index);
-                selection[i++] = _selectedCollection.Assets[index];
-            }
-
-            // set the selection
-            Selection.objects = selection;
-
-            // store the selection
-            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, indicesList.ToJson());
         }
 
         /// <summary>
@@ -313,14 +335,11 @@ namespace Cuboid.UnityPlugin
             {
                 GenericMenu moreMenu = new GenericMenu();
                 moreMenu.AddItem(new GUIContent("Delete"), false, () => { });
-
                 moreMenu.AddSeparator("");
                 moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
                 moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
                 moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
                 moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
-
-
                 moreMenu.ShowAsContext();
             });
             moreButton.Add(new Image()
@@ -329,9 +348,11 @@ namespace Cuboid.UnityPlugin
             });
             buttons.Add(moreButton);
 
+            string name = _selectedCollection.name + "_assetsList_" + CurrentThumbnailSize.ToString();
             _assetsList = new ListView()
             {
-                viewDataKey = _selectedCollection.name + "_assetsList_" + (int)CurrentThumbnailSize,
+                name = name,
+                viewDataKey = name,
                 selectionType = SelectionType.Multiple,
                 headerTitle = "Assets",
                 showFoldoutHeader = true,
@@ -385,7 +406,7 @@ namespace Cuboid.UnityPlugin
                 {
                     GameObject asset = _selectedCollection.Assets[index];
                     Image image = item.Q<Image>();
-                    image.image = GetAssetThumbnail(asset);
+                    image.image = ThumbnailProvider.GetThumbnail(asset);
                     Label metadataTitle = item.Q<Label>(className: k_AssetMetadataTitle);
                     metadataTitle.text = asset != null ? asset.name : "None (Game Object)";
 
@@ -412,7 +433,7 @@ namespace Cuboid.UnityPlugin
                 List<int> indices = json.ToIntList();
                 _assetsList.SetSelection(indices);
             }
-            
+
             _assetsList.onSelectedIndicesChange += OnAssetsSelectedIndicesChange;
         }
 
@@ -435,26 +456,9 @@ namespace Cuboid.UnityPlugin
             }
         }
 
-        #region Thumbnails
-
-        private Texture GetAssetThumbnail(GameObject asset)
-        {
-            if (asset == null) { return _emptyTexture; }
-            return ThumbnailProvider.GetThumbnail(asset);
-        }
-
         private Texture GetCollectionThumbnail(RealityAssetCollection collection)
         {
-            Texture preview = _emptyTexture;
-            if (collection.Assets.Count > 0)
-            {
-                // get the preview image of the first asset in the collection
-                GameObject asset = collection.Assets[0];
-                preview = GetAssetThumbnail(asset);
-            }
-            return preview;
+            return ThumbnailProvider.GetThumbnail(collection.Assets.Count > 0 ? collection.Assets[0] : null);
         }
-
-        #endregion
     }
 }

@@ -20,9 +20,22 @@ namespace Cuboid.UnityPlugin
         /// Cache directory relative to the Assets directory of the project. 
         /// </summary>
         private const string k_ThumbnailCacheDirectory = "Assets/Plugins/Cuboid/Cache/Thumbnails";
-        private const int k_ThumbnailSize = 128;
+        public const int k_ThumbnailSize = 256;
 
         private static Dictionary<string, Texture> _thumbnailsCache = new Dictionary<string, Texture>();
+
+        private static Texture _emptyTexture = null;
+        public static Texture EmptyTexture
+        {
+            get
+            {
+                if (_emptyTexture == null)
+                {
+                    _emptyTexture = new Texture2D(k_ThumbnailSize, k_ThumbnailSize);
+                }
+                return _emptyTexture;
+            }
+        }
 
         /// <summary>
         /// Empties the cache
