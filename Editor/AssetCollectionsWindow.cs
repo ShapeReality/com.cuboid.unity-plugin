@@ -12,6 +12,14 @@ namespace Cuboid.UnityPlugin
 {
     public class AssetCollectionsWindow : EditorWindow
     {
+        private enum ThumbnailSize
+        {
+            NotInitialized = 0,
+            Small = 64,
+            Medium = 128,
+            Large = 256
+        }
+
         private const string k_ShapeRealityUrl = "https://shapereality.io";
         private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
         private const string k_ManualUrl = "https://cuboid.readthedocs.io";
@@ -45,6 +53,26 @@ namespace Cuboid.UnityPlugin
         private ListView _collectionsList;
         private ListView _assetsList;
         private Texture2D _emptyTexture;
+
+        private const string k_ThumbnailSizeKey = "thumbnail-size";
+        private ThumbnailSize _currentThumbnailSize = ThumbnailSize.NotInitialized;
+        private ThumbnailSize CurrentThumbnailSize
+        {
+            get
+            {
+                if (_currentThumbnailSize == ThumbnailSize.NotInitialized)
+                {
+                    _currentThumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Small);
+                }
+                return _currentThumbnailSize;
+            }
+            set
+            {
+                _currentThumbnailSize = value;
+                EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_currentThumbnailSize);
+                RenderSelectedCollectionUI();
+            }
+        }
 
         private RealityAssetCollection _selectedCollection;
 
@@ -286,6 +314,13 @@ namespace Cuboid.UnityPlugin
                 GenericMenu moreMenu = new GenericMenu();
                 moreMenu.AddItem(new GUIContent("Delete"), false, () => { });
 
+                moreMenu.AddSeparator("");
+                moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
+                moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
+                moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
+                moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
+
+
                 moreMenu.ShowAsContext();
             });
             moreButton.Add(new Image()
@@ -296,7 +331,7 @@ namespace Cuboid.UnityPlugin
 
             _assetsList = new ListView()
             {
-                viewDataKey = _selectedCollection.name + "_assetsList",
+                viewDataKey = _selectedCollection.name + "_assetsList_" + (int)CurrentThumbnailSize,
                 selectionType = SelectionType.Multiple,
                 headerTitle = "Assets",
                 showFoldoutHeader = true,
@@ -305,16 +340,19 @@ namespace Cuboid.UnityPlugin
                 showBorder = true,
                 reorderable = true,
                 reorderMode = ListViewReorderMode.Animated,
-                fixedItemHeight = 256,
+                fixedItemHeight = (int)CurrentThumbnailSize,
                 showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = () =>
                 {
                     VisualElement element = new VisualElement();
                     element.AddToClassList(k_Asset);
-                    element.Add(new Image()
+                    Image thumbnail = new Image()
                     {
                         scaleMode = ScaleMode.ScaleToFit
-                    });
+                    };
+                    thumbnail.style.width = (int)CurrentThumbnailSize;
+                    element.Add(thumbnail);
+
                     VisualElement metadata = new VisualElement();
                     metadata.AddToClassList(k_AssetMetadata);
                     element.Add(metadata);
