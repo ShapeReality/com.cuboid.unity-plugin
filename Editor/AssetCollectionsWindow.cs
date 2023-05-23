@@ -305,7 +305,7 @@ namespace Cuboid.UnityPlugin
                 showBorder = true,
                 reorderable = true,
                 reorderMode = ListViewReorderMode.Animated,
-                fixedItemHeight = 60,
+                fixedItemHeight = 256,
                 showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = () =>
                 {
@@ -402,10 +402,7 @@ namespace Cuboid.UnityPlugin
         private Texture GetAssetThumbnail(GameObject asset)
         {
             if (asset == null) { return _emptyTexture; }
-
-            ThumbnailProvider.GetThumbnail(asset);
-
-            return AssetPreview.GetAssetPreview(asset);
+            return ThumbnailProvider.GetThumbnail(asset);
         }
 
         private Texture GetCollectionThumbnail(RealityAssetCollection collection)

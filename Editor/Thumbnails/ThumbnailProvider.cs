@@ -21,6 +21,8 @@ namespace Cuboid.UnityPlugin
         /// </summary>
         private const string k_ThumbnailCacheDirectory = "Assets/Plugins/Cuboid/Cache/Thumbnails";
 
+        //private static Dictionary<string, Texture> _
+
         /// <summary>
         /// Empties the cache, so that the 
         /// </summary>
@@ -44,11 +46,16 @@ namespace Cuboid.UnityPlugin
         /// 
         /// </summary>
         /// <param name="gameObject"></param>
-        public static void GetThumbnail(GameObject gameObject)
+        public static Texture GetThumbnail(GameObject gameObject)
         {
             EnsureThumbnailCacheDirectoryExists();
 
             // get the directory
+
+            ThumbnailRenderer.BackgroundColor = Color.clear;
+            ThumbnailRenderer.UseLocalBounds = true;
+            ThumbnailRenderer.OrthographicMode = true;
+            return ThumbnailRenderer.GenerateModelPreview(gameObject, 512, 512, true);
         }
     }
 }

@@ -85,7 +85,7 @@ Toolbar
 
 .asset Image
 {
-    width: 58px;
+    width: 254px;
     margin-right: 2px;
     flex-grow: 0;
     flex-shrink: 0;
