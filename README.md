@@ -1,6 +1,10 @@
 # Unity Plugin for Cuboid
 Unity Plugin for importing assets into the Cuboid App. 
 
+The plugin features the **`Asset Collections`** window, that allows creating a list of Prefabs and Imported Models and Building them to an Asset Collection Zip file that can be added to your AR / VR headset. 
+
+See [Importing Assets](https://cuboid.readthedocs.io/en/latest/sections/importing/) in the Manual for more information. 
+
 **Package name**: `com.cuboid.unity-plugin`
 
 **Created by**: [ShapeReality](https://shapereality.io/)
