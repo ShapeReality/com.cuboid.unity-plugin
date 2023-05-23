@@ -15,12 +15,12 @@ namespace Cuboid.UnityPlugin
         private const string k_ShapeRealityUrl = "https://shapereality.io";
         private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
         private const string k_ManualUrl = "https://cuboid.readthedocs.io";
-        private const string k_PackagePath = "Packages/com.cuboid.unity-plugin";
-        private const string k_StyleSheetPath = "Editor/AssetCollectionsWindow.uss";
-        private const string k_DarkIconPath = "Editor/Icons/cuboid_dark_icon.png";
-        private const string k_LightIconPath = "Editor/Icons/cuboid_light_icon.png";
-        private const string k_DarkLogoPath = "Editor/Icons/cuboid_dark.png";
-        private const string k_LightLogoPath = "Editor/Icons/cuboid_light.png";
+        
+        private const string k_StyleSheetPath = "Styles/AssetCollectionsWindow";
+        private const string k_DarkIconPath = "Icons/cuboid_dark_icon";
+        private const string k_LightIconPath = "Icons/cuboid_light_icon";
+        private const string k_DarkLogoPath = "Icons/cuboid_dark";
+        private const string k_LightLogoPath = "Icons/cuboid_light";
 
         private const string k_CollectionsView = "collections-view";
         private const string k_CollectionView = "collection-view";
@@ -49,7 +49,7 @@ namespace Cuboid.UnityPlugin
         private RealityAssetCollection _selectedCollection;
 
         [MenuItem("Cuboid/Asset Collections")]
-        public static void ShowMyEditor()
+        public static void ShowWindow()
         {
             // This method is called when the user selects the menu item in the Editor
             EditorWindow wnd = GetWindow<AssetCollectionsWindow>();
@@ -62,19 +62,14 @@ namespace Cuboid.UnityPlugin
 
         private static Texture GetIcon()
         {
-            string path = GetPath(EditorGUIUtility.isProSkin ? k_DarkIconPath : k_LightIconPath);
-            return AssetDatabase.LoadAssetAtPath<Texture>(path);
+            string path = EditorGUIUtility.isProSkin ? k_DarkIconPath : k_LightIconPath;
+            return Resources.Load<Texture>(path);
         }
 
         private static Texture GetLogo()
         {
-            string path = GetPath(EditorGUIUtility.isProSkin ? k_DarkLogoPath : k_LightLogoPath);
-            return AssetDatabase.LoadAssetAtPath<Texture>(path);
-        }
-
-        private static string GetPath(string path)
-        {
-            return Path.Combine(k_PackagePath, path);
+            string path = EditorGUIUtility.isProSkin ? k_DarkLogoPath : k_LightLogoPath;
+            return Resources.Load<Texture>(path);
         }
 
         private static void UpdateTitleContent(EditorWindow editorWindow)
@@ -90,17 +85,16 @@ namespace Cuboid.UnityPlugin
             string selectedCollectionName = EditorPrefs.GetString(k_SelectedCollectionKey);
             _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
 
-            LoadStylesheet();
+            LoadStyleSheet();
             _emptyTexture = new Texture2D(256, 256);
         }
 
-        private void LoadStylesheet()
+        private void LoadStyleSheet()
         {
-            string path = Path.Combine(k_PackagePath, k_StyleSheetPath);
-            _styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(path);
+            _styleSheet = Resources.Load<StyleSheet>(k_StyleSheetPath);
             if (_styleSheet == null)
             {
-                Debug.LogWarning($"Could not find style sheet at {path}");
+                Debug.LogWarning($"Could not find style sheet at {k_StyleSheetPath}");
             }
         }
 
@@ -119,11 +113,8 @@ namespace Cuboid.UnityPlugin
         private void OnProjectChange()
         {
             LoadAssetCollectionsInProject();
-            _collectionsList.RefreshItems();
-            if (_assetsList != null)
-            {
-                _assetsList.RefreshItems();
-            }
+            if (_collectionsList != null) { _collectionsList.RefreshItems(); }
+            if (_assetsList != null) { _assetsList.RefreshItems(); }
             UpdateCollectionsListSelectedIndex();
         }
 
@@ -411,6 +402,9 @@ namespace Cuboid.UnityPlugin
         private Texture GetAssetThumbnail(GameObject asset)
         {
             if (asset == null) { return _emptyTexture; }
+
+            ThumbnailProvider.GetThumbnail(asset);
+
             return AssetPreview.GetAssetPreview(asset);
         }
 

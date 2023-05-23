@@ -1,3 +1,4 @@
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -13,25 +14,41 @@ namespace Cuboid.UnityPlugin
     ///
     /// They will be serialized in the project 
     /// </summary>
-    public class ThumbnailProvider
+    public static class ThumbnailProvider
     {
-        private const string k_ThumbnailCacheDirectory = ".cuboid/cache/thumbnails";
+        /// <summary>
+        /// Cache directory relative to the Assets directory of the project. 
+        /// </summary>
+        private const string k_ThumbnailCacheDirectory = "Assets/Plugins/Cuboid/Cache/Thumbnails";
 
         /// <summary>
         /// Empties the cache, so that the 
         /// </summary>
-        private void EmptyCache()
+        private static void EmptyCache()
         {
 
+        }
+
+        private static void EnsureThumbnailCacheDirectoryExists()
+        {
+            if (!Directory.Exists(k_ThumbnailCacheDirectory))
+            {
+                Directory.CreateDirectory(k_ThumbnailCacheDirectory);
+                AssetDatabase.Refresh();
+                DefaultAsset folderAsset = AssetDatabase.LoadAssetAtPath<DefaultAsset>(k_ThumbnailCacheDirectory);
+                folderAsset.hideFlags = HideFlags.HideAndDontSave;
+            }
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="gameObject"></param>
-        public void GetThumbnail(GameObject gameObject)
+        public static void GetThumbnail(GameObject gameObject)
         {
-            
+            EnsureThumbnailCacheDirectoryExists();
+
+            // get the directory
         }
     }
 }
