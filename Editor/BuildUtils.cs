@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -109,30 +110,156 @@ namespace Cuboid.UnityPlugin.Editor
             string tempPath = FileUtil.GetUniqueTempPathInProject();
             Directory.CreateDirectory(tempPath);
 
-            string assetBundlePath = tempPath;//Path.Combine(tempPath, Constants.k_AssetCollectionAssetBundleName);
+            string assetBundlePath = Path.Combine(tempPath, Constants.k_AssetCollectionAssetBundleName);
+            Directory.CreateDirectory(assetBundlePath);
 
             BuildAssetBundleOptions options = BuildAssetBundleOptions.None;
             BuildTarget buildTarget = BuildTarget.Android;
-            AssetBundleBuild assetBundleBuild = new AssetBundleBuild()
-            {
-                assetBundleName = collection.name,
-                assetNames = GetAssetNames(collection.Assets)
-            };
+            AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
             BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
 
             File.WriteAllText(targetPath, "Dingetjes");
         }
 
-        private static string[] GetAssetNames(List<GameObject> assets)
+        private static string GetAddressableName(string assetName)
         {
+            return Path.GetFileNameWithoutExtension(assetName);
+        }
+
+        private static AssetBundleBuild GetAssetBundlebuild(RealityAssetCollection collection)
+        {
+            if (collection == null || collection.Assets == null || collection.Assets.Count == 0)
+            {
+                throw new System.Exception("Invalid collection");
+            }
+
+            List<GameObject> assets = collection.Assets;
+
+            string[] addressableNames = new string[assets.Count];
             string[] assetNames = new string[assets.Count];
+
+            Dictionary<string, HashSet<int>> collisions = new();
+
             for (int i = 0; i < assets.Count; i++)
             {
                 GameObject asset = assets[i];
                 string path = AssetDatabase.GetAssetPath(asset);
                 assetNames[i] = path;
+
+                // make sure the name doesn't already exist (add folder distinction)
+                string addressableName = GetAddressableName(path);
+                
+                // check all previous added names
+                for (int j = 0; j < i; j++)
+                {
+                    // this means a naming collision, we should specify both of them with the folder name
+                    if (GetAddressableName(assetNames[j]) == addressableName)
+                    {
+                        collisions.TryAdd(addressableName, new());
+                        collisions[addressableName].Add(j);
+                        collisions[addressableName].Add(i);
+                    }
+                }
+                addressableNames[i] = addressableName;
+            };
+
+            foreach (KeyValuePair<string, HashSet<int>> collision in collisions)
+            {
+                Debug.Log(collision.Key);
+                HashSet<int> collisionIndices = collision.Value;
+
+                if (collisionIndices.Count < 2) { continue; } // collisions can only occur when two or more collisions were found
+
+                string[] paths = new string[collisionIndices.Count];
+                int k = 0;
+                foreach (int collisionIndex in collisionIndices)
+                {
+                    paths[k] = assetNames[collisionIndex];
+                    k++;
+                }
+
+                // get common prefix
+                string commonPrefix = GetCommonPrefix(paths);
+
+                // remove the trailing
+                int directorySeparatorIndex = commonPrefix.LastIndexOf(Path.DirectorySeparatorChar);
+                if (directorySeparatorIndex != -1)
+                {
+                    commonPrefix = commonPrefix.Substring(0, directorySeparatorIndex);
+                }
+                Debug.Log(commonPrefix);
+
+                // now, remove this prefix from the asset names and set that as the addressable names
+                foreach (int collisionIndex in collisionIndices)
+                {
+                    string path = assetNames[collisionIndex];
+                    path = path.Substring(commonPrefix.Length);
+                    path = path.TrimStart(Path.DirectorySeparatorChar);
+                    path = path.Substring(0, path.LastIndexOf('.'));
+
+                    addressableNames[collisionIndex] = path;
+                }
             }
-            return assetNames;
+
+            //// loop through all of the collisions
+            //if (collisions.Count > 1)
+            //{
+            //    // now, remove this prefix from the asset names and set that as the addressable names
+
+            //    int l = 0;
+            //    foreach (int collision in collisions)
+            //    {
+            //        string originalPath = assetNames[collision];
+            //        addressableNames[l] = originalPath.Substring(commonPrefix.Length);
+            //        l++;
+            //    }
+            //}
+
+            for (int i = 0; i < addressableNames.Length; i++)
+            {
+                Debug.Log(addressableNames[i]);
+            }
+
+            return new AssetBundleBuild()
+            {
+                assetBundleName = collection.name,
+                assetNames = assetNames,
+                addressableNames = addressableNames
+            };
+        }
+
+        private static string GetCommonPrefix(string[] strings)
+        {            
+            if (strings == null || strings.Length == 0) { return ""; }
+            if (strings.Length == 1) { return strings[0]; }
+
+            // first get the minLength
+            int minLength = int.MaxValue;
+            for (int i = 0; i < strings.Length; i++)
+            {
+                int length = strings[i].Length;
+                if (length < minLength)
+                {
+                    minLength = length;
+                }
+            }
+
+            // loop through all of the characters
+            for (int j = 0; j < minLength; j++)
+            {
+                char c = strings[0][j];
+                // loop through each string
+                for (int k = 1; k < strings.Length; k++)
+                {
+                    char newChar = strings[k][j];
+                    if (newChar != c)
+                    {
+                        return strings[0].Substring(0, j);
+                    }
+                }
+            }
+
+            return strings[0].Substring(0, minLength);
         }
 
         private static List<GameObject> FilterAssets(List<GameObject> assets)
