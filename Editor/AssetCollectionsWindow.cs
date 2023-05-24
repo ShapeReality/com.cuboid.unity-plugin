@@ -10,7 +10,7 @@ using UnityEditor.UIElements;
 using System.Reflection;
 using Object = UnityEngine.Object;
 
-namespace Cuboid.UnityPlugin
+namespace Cuboid.UnityPlugin.Editor
 {
     public class AssetCollectionsWindow : EditorWindow
     {
@@ -328,7 +328,7 @@ namespace Cuboid.UnityPlugin
             buttons.Add(refreshButton);
             buttons.Add(new Button(() =>
             {
-                _selectedCollection.Build();
+                BuildUtils.Build(_selectedCollection);
             })
             {
                 text = "Build..."

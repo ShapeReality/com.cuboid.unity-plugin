@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 
-namespace Cuboid.UnityPlugin
+namespace Cuboid.UnityPlugin.Editor
 {
     /// <summary>
     /// The <see cref="ThumbnailProvider"/> allows the <see cref="AssetCollectionsWindow "/> to call

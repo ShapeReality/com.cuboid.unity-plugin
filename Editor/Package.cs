@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Cuboid.UnityPlugin
+namespace Cuboid.UnityPlugin.Editor
 {
     public static class Package
     {

@@ -15,5 +15,6 @@ namespace Cuboid.UnityPlugin
 
         public const string k_AssetCollectionFileExtension = ".zip";
         public const string k_AssetCollectionEntryName = "collection.json";
+        public const string k_AssetCollectionAssetBundleName = "bundle";
     }
 }

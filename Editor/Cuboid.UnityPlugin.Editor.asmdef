@@ -1,9 +1,11 @@
 {
-    "name": "Cuboid.UnityPlugin",
-    "rootNamespace": "Cuboid.UnityPlugin",
+    "name": "Cuboid.UnityPlugin.Editor",
+    "rootNamespace": "Cuboid.UnityPlugin.Editor",
     "references": [
+        "Cuboid.UnityPlugin",
         "Unity.RenderPipelines.Universal.Runtime",
-        "Unity.RenderPipelines.Universal.Editor"
+        "Unity.RenderPipelines.Universal.Editor",
+        "UnityEditor.UI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
