@@ -157,7 +157,6 @@ namespace Cuboid.UnityPlugin.Editor
             ThumbnailProvider.EmptyCache();
             LoadAssetCollectionsInProject();
             if (_collectionsList != null) { _collectionsList.RefreshItems(); }
-            if (_assetsList != null) { _assetsList.RefreshItems(); }
             UpdateCollectionsListSelectedIndex();
             RenderSelectedCollectionUI();
         }
@@ -176,14 +175,17 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
         {
             _selectedCollection = selectedItems.First() as RealityAssetCollection;
-            Debug.Log(_selectedCollection);
+            OnSelectedCollectionChanged();
+        }
+
+        private void OnSelectedCollectionChanged()
+        {
             if (_selectedCollection != null)
             {
                 Selection.activeObject = _selectedCollection;
             }
 
             EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection != null ? _selectedCollection.name : "");
-
             RenderSelectedCollectionUI();
         }
 
@@ -262,10 +264,19 @@ namespace Cuboid.UnityPlugin.Editor
                 if (_selectedCollection != null)
                 {
                     _selectedCollection.Assets.AddRange(gameObjects);
+                    SaveSelectedCollection();
                     if (_assetsList != null) { _assetsList.RefreshItems(); }
-                    AssetDatabase.SaveAssets();
                 }
             });
+        }
+
+        private void SaveSelectedCollection()
+        {
+            if (_selectedCollection != null)
+            {
+                EditorUtility.SetDirty(_selectedCollection);
+                AssetDatabase.SaveAssets();
+            }
         }
 
         /// <summary>
@@ -350,6 +361,28 @@ namespace Cuboid.UnityPlugin.Editor
             Button moreButton = new Button(() =>
             {
                 GenericMenu moreMenu = new GenericMenu();
+                
+                moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
+                moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
+                moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
+                moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
+                moreMenu.AddSeparator("");
+                moreMenu.AddItem(new GUIContent("Duplicate"), false, () =>
+                {
+                    if (_selectedCollection != null)
+                    {
+                        string path = AssetDatabase.GetAssetPath(_selectedCollection);
+                        string newPath = AssetDatabase.GenerateUniqueAssetPath(path);
+                        bool success = AssetDatabase.CopyAsset(path, newPath);
+                        if (!success)
+                        {
+                            throw new Exception($"Failed to duplicate selected Asset Collection from {path} to {newPath}");
+                        }
+                        _selectedCollection = AssetDatabase.LoadAssetAtPath<RealityAssetCollection>(newPath);
+                        OnSelectedCollectionChanged();
+                    }
+                });
+                moreMenu.AddSeparator("");
                 moreMenu.AddItem(new GUIContent("Delete"), false, () =>
                 {
                     if (_selectedCollection != null)
@@ -361,11 +394,7 @@ namespace Cuboid.UnityPlugin.Editor
                         OnProjectChange();
                     }
                 });
-                moreMenu.AddSeparator("");
-                moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
-                moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
-                moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
-                moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
+
                 moreMenu.ShowAsContext();
             });
             moreButton.Add(new Image()
@@ -449,9 +478,9 @@ namespace Cuboid.UnityPlugin.Editor
                 },
                 itemsSource = _selectedCollection.Assets
             };
-            _assetsList.itemsAdded += (_) => { AssetDatabase.SaveAssets(); };
-            _assetsList.itemsRemoved += (_) => { AssetDatabase.SaveAssets(); };
-            _assetsList.itemIndexChanged += (_, _) => { AssetDatabase.SaveAssets(); };
+            _assetsList.itemsAdded += (_) => { SaveSelectedCollection(); };
+            _assetsList.itemsRemoved += (_) => { SaveSelectedCollection(); };
+            _assetsList.itemIndexChanged += (_, _) => { SaveSelectedCollection(); };
             _collectionView.Add(_assetsList);
 
             // Sets the selected index
