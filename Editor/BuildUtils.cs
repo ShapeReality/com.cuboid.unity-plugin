@@ -156,7 +156,7 @@ namespace Cuboid.UnityPlugin.Editor
             // Step 5: Add the Sprite Atlas to the asset bundle build
             assetBundleBuild.Add(spriteAtlasPath, Constants.k_AssetCollectionSpriteAtlasName);
 
-            // Step 4: Build the asset bundle to a temporary directory
+            // Step 6: Build the asset bundle to a temporary directory
             string tempPath = FileUtil.GetUniqueTempPathInProject();
             Directory.CreateDirectory(tempPath);
 
