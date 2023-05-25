@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.U2D;
 using UnityEditor.U2D;
 using Newtonsoft.Json;
+using System.IO.Compression;
 
 namespace Cuboid.UnityPlugin.Editor
 {
@@ -43,7 +44,7 @@ namespace Cuboid.UnityPlugin.Editor
 
         private static void OnCancelBuild(RealityAssetCollection collection)
         {
-            Debug.LogWarning($"Asset Collection \"{collection.name}\" Build Cancelled");
+            // Debug.LogWarning($"Asset Collection \"{collection.name}\" Build Cancelled");
         }
 
         public static void Build(RealityAssetCollection collection)
@@ -96,7 +97,7 @@ namespace Cuboid.UnityPlugin.Editor
                 }
             }
 
-            Debug.Log($"Writing collection at {targetPath}");
+            // Debug.Log($"Writing collection at {targetPath}");
 
             // Step 2: Filter any duplicate or null objects out of the assets
             List<GameObject> assets = FilterAssets(collection.Assets);
@@ -104,6 +105,23 @@ namespace Cuboid.UnityPlugin.Editor
             // Step 3: Create asset bundle build that contains asset names and addressable names,
             // these can then be used to name the thumbnails. 
             AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
+
+            // Get temp path
+            string tempPath = FileUtil.GetUniqueTempPathInProject();
+            Directory.CreateDirectory(tempPath);
+
+            // Create serialized collection, should be done before adding the SpriteAtlas, otherwise
+            // the sprite atlas entry will also be in the AddressableNames list
+            SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
+            {
+                AddressableNames = assetBundleBuild.addressableNames.ToList(),
+                Author = collection.Author,
+                CreationDate = DateTime.Now
+            };
+
+            string json = JsonConvert.SerializeObject(serializedCollection, Formatting.Indented, SerializationSettings.RealityAssetCollectionJsonSerializationSettings);
+            string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
+            File.WriteAllText(jsonPath, json);
 
             // Step 4: Make SpriteAtlas
             string thumbnailsFolderGuid = AssetDatabase.CreateFolder("Assets", k_TemporaryThumbnailSpritesDirectory);
@@ -127,14 +145,14 @@ namespace Cuboid.UnityPlugin.Editor
                 Texture2D thumbnailTexture = ThumbnailProvider.GetThumbnail(asset);
 
                 // make pngs and add them to the AssetDatabase
-                byte[] wee = thumbnailTexture.GetRawTextureData();
-                byte[] bytes = ImageConversion.EncodeArrayToPNG(
-                    wee, thumbnailTexture.graphicsFormat, (uint)thumbnailTexture.width, (uint)thumbnailTexture.height);
+                byte[] textureData = thumbnailTexture.GetRawTextureData();
+                byte[] encodedTexture = ImageConversion.EncodeArrayToPNG(
+                    textureData, thumbnailTexture.graphicsFormat, (uint)thumbnailTexture.width, (uint)thumbnailTexture.height);
 
                 string thumbnailName = assetBundleBuild.addressableNames[i];
                 thumbnailName = thumbnailName.Replace(Path.DirectorySeparatorChar, '_');
                 string thumbnailPath = Path.Combine(thumbnailsFolder, thumbnailName + ".png");
-                File.WriteAllBytes(thumbnailPath, bytes);
+                File.WriteAllBytes(thumbnailPath, encodedTexture);
 
                 AssetDatabase.ImportAsset(thumbnailPath);
                 TextureImporter textureImporter = (TextureImporter)AssetImporter.GetAtPath(thumbnailPath);
@@ -150,16 +168,12 @@ namespace Cuboid.UnityPlugin.Editor
             }
 
             spriteAtlas.Add(sprites);
-
             AssetDatabase.SaveAssets();
 
             // Step 5: Add the Sprite Atlas to the asset bundle build
             assetBundleBuild.Add(spriteAtlasPath, Constants.k_AssetCollectionSpriteAtlasName);
 
-            // Step 6: Build the asset bundle to a temporary directory
-            string tempPath = FileUtil.GetUniqueTempPathInProject();
-            Directory.CreateDirectory(tempPath);
-
+            // Build the asset bundle to the temporary directory
             string assetBundlePath = Path.Combine(tempPath, Constants.k_AssetCollectionAssetBundleName);
             Directory.CreateDirectory(assetBundlePath);
 
@@ -167,25 +181,20 @@ namespace Cuboid.UnityPlugin.Editor
             BuildTarget buildTarget = BuildTarget.Android;
             BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
 
-            // create the serialized collection
-            SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
-            {
-                AddressableNames = assetBundleBuild.addressableNames.ToList(),
-                Author = collection.Author,
-                CreationDate = DateTime.Now
-            };
-
-            string json = JsonConvert.SerializeObject(serializedCollection, Formatting.Indented, SerializationSettings.RealityAssetCollectionJsonSerializationSettings);
-            string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
-            File.WriteAllText(jsonPath, json);
-
-            File.WriteAllText(targetPath, "Dingetjes");
+            // put the contents of the files at the jsonPath and the assetBundlePath into a zip file
+            ZipFile.CreateFromDirectory(tempPath, targetPath);
 
             // Finally: Remove all thumbnail sprites from assets
+            AssetDatabase.DeleteAsset(thumbnailsFolder);
+            AssetDatabase.Refresh();
 
             // Clear up temporary files
+            Directory.Delete(tempPath, true);
         }
 
+        /// <summary>
+        /// Add a singular item to a bundle (used for adding the SpriteAtlas to the bundle). 
+        /// </summary>
         private static void Add(this ref AssetBundleBuild bundle, string path, string addressableName = null)
         {
             string[] addressableNames = bundle.addressableNames;
@@ -255,7 +264,7 @@ namespace Cuboid.UnityPlugin.Editor
 
             foreach (KeyValuePair<string, HashSet<int>> collision in collisions)
             {
-                Debug.Log(collision.Key);
+                // Debug.Log(collision.Key);
                 HashSet<int> collisionIndices = collision.Value;
 
                 if (collisionIndices.Count < 2) { continue; } // collisions can only occur when two or more collisions were found
@@ -277,7 +286,8 @@ namespace Cuboid.UnityPlugin.Editor
                 {
                     commonPrefix = commonPrefix.Substring(0, directorySeparatorIndex);
                 }
-                Debug.Log(commonPrefix);
+
+                // Debug.Log(commonPrefix);
 
                 // now, remove this prefix from the asset names and set that as the addressable names
                 foreach (int collisionIndex in collisionIndices)
@@ -291,10 +301,10 @@ namespace Cuboid.UnityPlugin.Editor
                 }
             }
 
-            for (int i = 0; i < addressableNames.Length; i++)
-            {
-                Debug.Log(addressableNames[i]);
-            }
+            //for (int i = 0; i < addressableNames.Length; i++)
+            //{
+            //    Debug.Log(addressableNames[i]);
+            //}
 
             return new AssetBundleBuild()
             {
