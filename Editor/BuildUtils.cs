@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.U2D;
+using UnityEditor.U2D;
 using Newtonsoft.Json;
 
 namespace Cuboid.UnityPlugin.Editor
@@ -16,6 +17,9 @@ namespace Cuboid.UnityPlugin.Editor
     /// </summary>
     public static class BuildUtils
     {
+        private const string k_TemporaryThumbnailSpritesDirectory = "__cuboid_temp";
+        private const string k_SpriteAtlasFileName = "__spriteatlas.spriteatlas";
+
         // Stores the last selected directory path in EditorPrefs so that it persists between editor reloads. 
         private const string k_LastSelectedDirectoryPathKey = "BuildUtils_lastSelectedDirectoryPath";
         private static string _lastSelectedDirectoryPath = null;
@@ -97,17 +101,62 @@ namespace Cuboid.UnityPlugin.Editor
             // Step 2: Filter any duplicate or null objects out of the assets
             List<GameObject> assets = FilterAssets(collection.Assets);
 
-            // Step 2: Make SpriteAtlas
+            // Step 3: Create asset bundle build that contains asset names and addressable names,
+            // these can then be used to name the thumbnails. 
+            AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
+
+            // Step 4: Make SpriteAtlas
+            string thumbnailsFolderGuid = AssetDatabase.CreateFolder("Assets", k_TemporaryThumbnailSpritesDirectory);
+            string thumbnailsFolder = AssetDatabase.GUIDToAssetPath(thumbnailsFolderGuid);
+
             SpriteAtlas spriteAtlas = new SpriteAtlas();
-
-            foreach (GameObject asset in assets)
+            spriteAtlas.SetPackingSettings(new SpriteAtlasPackingSettings()
             {
-                // get the thumbnail
-                Texture thumbnailTexture = ThumbnailProvider.GetThumbnail(asset);
+                enableRotation = false,
+                enableTightPacking = false
+            });
+            string spriteAtlasPath = Path.Combine(thumbnailsFolder, k_SpriteAtlasFileName);
+            AssetDatabase.CreateAsset(spriteAtlas, spriteAtlasPath);
 
+            UnityEngine.Object[] sprites = new UnityEngine.Object[assets.Count];
+            for (int i = 0; i < assets.Count; i++)
+            {
+                GameObject asset = assets[i];
+
+                // get the thumbnail
+                Texture2D thumbnailTexture = ThumbnailProvider.GetThumbnail(asset);
+
+                // make pngs and add them to the AssetDatabase
+                byte[] wee = thumbnailTexture.GetRawTextureData();
+                byte[] bytes = ImageConversion.EncodeArrayToPNG(
+                    wee, thumbnailTexture.graphicsFormat, (uint)thumbnailTexture.width, (uint)thumbnailTexture.height);
+
+                string thumbnailName = assetBundleBuild.addressableNames[i];
+                thumbnailName = thumbnailName.Replace(Path.DirectorySeparatorChar, '_');
+                string thumbnailPath = Path.Combine(thumbnailsFolder, thumbnailName + ".png");
+                File.WriteAllBytes(thumbnailPath, bytes);
+
+                AssetDatabase.ImportAsset(thumbnailPath);
+                TextureImporter textureImporter = (TextureImporter)AssetImporter.GetAtPath(thumbnailPath);
+                textureImporter.textureType = TextureImporterType.Sprite;
+                textureImporter.alphaIsTransparency = true;
+                textureImporter.alphaSource = TextureImporterAlphaSource.FromInput;
+
+                EditorUtility.SetDirty(textureImporter);
+                textureImporter.SaveAndReimport();
+
+                Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(thumbnailPath);
+                sprites[i] = sprite;
             }
 
-            // We build the asset bundle to a temporary directory
+            spriteAtlas.Add(sprites);
+
+            AssetDatabase.SaveAssets();
+
+            // Step 5: Add the Sprite Atlas to the asset bundle build
+            assetBundleBuild.Add(spriteAtlasPath, Constants.k_AssetCollectionSpriteAtlasName);
+
+            // Step 4: Build the asset bundle to a temporary directory
             string tempPath = FileUtil.GetUniqueTempPathInProject();
             Directory.CreateDirectory(tempPath);
 
@@ -116,7 +165,6 @@ namespace Cuboid.UnityPlugin.Editor
 
             BuildAssetBundleOptions options = BuildAssetBundleOptions.None;
             BuildTarget buildTarget = BuildTarget.Android;
-            AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
             BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
 
             // create the serialized collection
@@ -129,10 +177,30 @@ namespace Cuboid.UnityPlugin.Editor
 
             string json = JsonConvert.SerializeObject(serializedCollection, Formatting.Indented, SerializationSettings.RealityAssetCollectionJsonSerializationSettings);
             string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
-            Debug.Log(jsonPath);
             File.WriteAllText(jsonPath, json);
 
             File.WriteAllText(targetPath, "Dingetjes");
+
+            // Finally: Remove all thumbnail sprites from assets
+
+            // Clear up temporary files
+        }
+
+        private static void Add(this ref AssetBundleBuild bundle, string path, string addressableName = null)
+        {
+            string[] addressableNames = bundle.addressableNames;
+            string[] assetNames = bundle.assetNames;
+
+            Array.Resize(ref addressableNames, addressableNames.Length + 1);
+            Array.Resize(ref assetNames, assetNames.Length + 1);
+
+            int index = addressableNames.Length - 1;
+
+            assetNames[index] = path;
+            addressableNames[index] = addressableName != null ? addressableName : path;
+
+            bundle.assetNames = assetNames;
+            bundle.addressableNames = addressableNames;
         }
 
         private static string GetAddressableName(string assetName)

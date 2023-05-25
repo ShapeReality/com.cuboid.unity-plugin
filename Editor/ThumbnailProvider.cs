@@ -22,10 +22,10 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_ThumbnailCacheDirectory = "Assets/Plugins/Cuboid/Cache/Thumbnails";
         public const int k_ThumbnailSize = 256;
 
-        private static Dictionary<string, Texture> _thumbnailsCache = new Dictionary<string, Texture>();
+        private static Dictionary<string, Texture2D> _thumbnailsCache = new Dictionary<string, Texture2D>();
 
-        private static Texture _emptyTexture = null;
-        public static Texture EmptyTexture
+        private static Texture2D _emptyTexture = null;
+        public static Texture2D EmptyTexture
         {
             get
             {
@@ -60,7 +60,7 @@ namespace Cuboid.UnityPlugin.Editor
         /// 
         /// </summary>
         /// <param name="gameObject"></param>
-        public static Texture GetThumbnail(GameObject gameObject)
+        public static Texture2D GetThumbnail(GameObject gameObject)
         {
             Debug.Assert(_thumbnailsCache != null);
 
@@ -69,7 +69,7 @@ namespace Cuboid.UnityPlugin.Editor
             // Try to get the thumbnail from the cache
             string assetPath = AssetDatabase.GetAssetPath(gameObject);
             string guid = AssetDatabase.AssetPathToGUID(assetPath);
-            if (_thumbnailsCache.TryGetValue(guid, out Texture value))
+            if (_thumbnailsCache.TryGetValue(guid, out Texture2D value))
             {
                 if (value != null)
                 {
@@ -81,7 +81,7 @@ namespace Cuboid.UnityPlugin.Editor
             ThumbnailRenderer.BackgroundColor = Color.clear;
             ThumbnailRenderer.UseLocalBounds = true;
             ThumbnailRenderer.OrthographicMode = true;
-            Texture thumbnail = ThumbnailRenderer.GenerateModelPreview(gameObject, k_ThumbnailSize, k_ThumbnailSize);
+            Texture2D thumbnail = ThumbnailRenderer.GenerateModelPreview(gameObject, k_ThumbnailSize, k_ThumbnailSize);
 
             // Store the thumbnail in the cache
             if (thumbnail != null)
