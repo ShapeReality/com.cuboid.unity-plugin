@@ -104,7 +104,7 @@ namespace Cuboid.UnityPlugin.Editor
 
             // Step 3: Create asset bundle build that contains asset names and addressable names,
             // these can then be used to name the thumbnails. 
-            AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
+            AssetBundleBuild assetBundleBuild = GetAssetBundleBuild(assets, collection.name);
 
             // Get temp path
             string tempPath = FileUtil.GetUniqueTempPathInProject();
@@ -136,18 +136,17 @@ namespace Cuboid.UnityPlugin.Editor
             string spriteAtlasPath = Path.Combine(thumbnailsFolder, k_SpriteAtlasFileName);
             AssetDatabase.CreateAsset(spriteAtlas, spriteAtlasPath);
 
+            // store the asset collection thumbnail in a png, simply use the first asset in the list
+            byte[] thumbnail = AssetToThumbnailPNG(assets[0]);
+            File.WriteAllBytes(Path.Combine(tempPath, Constants.k_ThumbnailEntryName), thumbnail);
+
             UnityEngine.Object[] sprites = new UnityEngine.Object[assets.Count];
             for (int i = 0; i < assets.Count; i++)
             {
                 GameObject asset = assets[i];
 
                 // get the thumbnail
-                Texture2D thumbnailTexture = ThumbnailProvider.GetThumbnail(asset);
-
-                // make pngs and add them to the AssetDatabase
-                byte[] textureData = thumbnailTexture.GetRawTextureData();
-                byte[] encodedTexture = ImageConversion.EncodeArrayToPNG(
-                    textureData, thumbnailTexture.graphicsFormat, (uint)thumbnailTexture.width, (uint)thumbnailTexture.height);
+                byte[] encodedTexture = AssetToThumbnailPNG(asset);
 
                 string thumbnailName = assetBundleBuild.addressableNames[i];
                 thumbnailName = thumbnailName.Replace(Path.DirectorySeparatorChar, '_');
@@ -193,6 +192,19 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         /// <summary>
+        /// Gets the thumbnail and encodes it to PNG as an array of bytes
+        /// </summary>
+        private static byte[] AssetToThumbnailPNG(GameObject asset)
+        {
+            Texture2D thumbnailTexture = ThumbnailProvider.GetThumbnail(asset);
+            byte[] textureData = thumbnailTexture.GetRawTextureData();
+            byte[] encodedTexture = ImageConversion.EncodeArrayToPNG(
+                textureData, thumbnailTexture.graphicsFormat, (uint)thumbnailTexture.width, (uint)thumbnailTexture.height);
+
+            return encodedTexture;
+        }
+
+        /// <summary>
         /// Add a singular item to a bundle (used for adding the SpriteAtlas to the bundle). 
         /// </summary>
         private static void Add(this ref AssetBundleBuild bundle, string path, string addressableName = null)
@@ -225,14 +237,12 @@ namespace Cuboid.UnityPlugin.Editor
         /// <param name="collection"></param>
         /// <returns></returns>
         /// <exception cref="System.Exception"></exception>
-        private static AssetBundleBuild GetAssetBundlebuild(RealityAssetCollection collection)
+        private static AssetBundleBuild GetAssetBundleBuild(List<GameObject> assets, string name)
         {
-            if (collection == null || collection.Assets == null || collection.Assets.Count == 0)
+            if (assets == null || assets.Count == 0)
             {
                 throw new System.Exception("Invalid collection");
             }
-
-            List<GameObject> assets = collection.Assets;
 
             string[] addressableNames = new string[assets.Count];
             string[] assetNames = new string[assets.Count];
@@ -308,7 +318,7 @@ namespace Cuboid.UnityPlugin.Editor
 
             return new AssetBundleBuild()
             {
-                assetBundleName = collection.name,
+                assetBundleName = name,
                 assetNames = assetNames,
                 addressableNames = addressableNames
             };
