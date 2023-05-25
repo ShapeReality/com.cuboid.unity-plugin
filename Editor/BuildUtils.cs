@@ -215,7 +215,7 @@ namespace Cuboid.UnityPlugin.Editor
             Array.Resize(ref addressableNames, addressableNames.Length + 1);
             Array.Resize(ref assetNames, assetNames.Length + 1);
 
-            int index = addressableNames.Length - 1;
+            int index = assetNames.Length - 1;
 
             assetNames[index] = path;
             addressableNames[index] = addressableName != null ? addressableName : path;
