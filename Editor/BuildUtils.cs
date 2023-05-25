@@ -6,6 +6,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.U2D;
+using Newtonsoft.Json;
 
 namespace Cuboid.UnityPlugin.Editor
 {
@@ -118,6 +119,19 @@ namespace Cuboid.UnityPlugin.Editor
             AssetBundleBuild assetBundleBuild = GetAssetBundlebuild(collection);
             BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
 
+            // create the serialized collection
+            SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
+            {
+                AddressableNames = assetBundleBuild.addressableNames.ToList(),
+                Author = collection.Author,
+                CreationDate = DateTime.Now
+            };
+
+            string json = JsonConvert.SerializeObject(serializedCollection, Formatting.Indented, SerializationSettings.RealityAssetCollectionJsonSerializationSettings);
+            string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
+            Debug.Log(jsonPath);
+            File.WriteAllText(jsonPath, json);
+
             File.WriteAllText(targetPath, "Dingetjes");
         }
 
@@ -126,6 +140,14 @@ namespace Cuboid.UnityPlugin.Editor
             return Path.GetFileNameWithoutExtension(assetName);
         }
 
+        /// <summary>
+        /// Returns an asset bundle build object with unique addressable names that
+        /// are as short as possible, but include folder names when there are multiple assets
+        /// with the same name in different folders. 
+        /// </summary>
+        /// <param name="collection"></param>
+        /// <returns></returns>
+        /// <exception cref="System.Exception"></exception>
         private static AssetBundleBuild GetAssetBundlebuild(RealityAssetCollection collection)
         {
             if (collection == null || collection.Assets == null || collection.Assets.Count == 0)
@@ -200,20 +222,6 @@ namespace Cuboid.UnityPlugin.Editor
                     addressableNames[collisionIndex] = path;
                 }
             }
-
-            //// loop through all of the collisions
-            //if (collisions.Count > 1)
-            //{
-            //    // now, remove this prefix from the asset names and set that as the addressable names
-
-            //    int l = 0;
-            //    foreach (int collision in collisions)
-            //    {
-            //        string originalPath = assetNames[collision];
-            //        addressableNames[l] = originalPath.Substring(commonPrefix.Length);
-            //        l++;
-            //    }
-            //}
 
             for (int i = 0; i < addressableNames.Length; i++)
             {
