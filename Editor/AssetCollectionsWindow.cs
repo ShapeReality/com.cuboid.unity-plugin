@@ -159,26 +159,30 @@ namespace Cuboid.UnityPlugin.Editor
             if (_collectionsList != null) { _collectionsList.RefreshItems(); }
             if (_assetsList != null) { _assetsList.RefreshItems(); }
             UpdateCollectionsListSelectedIndex();
+            RenderSelectedCollectionUI();
         }
 
         private void UpdateCollectionsListSelectedIndex()
         {
-            if (_selectedCollection != null && _collectionsList != null)
+            if (_selectedCollection != null &&
+                _collectionsList != null &&
+                _collections.Count > 0)
             {
-                _collectionsList.selectedIndex = _collections.IndexOf(_selectedCollection);
+                int index = _collections.IndexOf(_selectedCollection);
+                _collectionsList.selectedIndex = index != -1 ? index : 0;
             }
         }
 
         private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
         {
             _selectedCollection = selectedItems.First() as RealityAssetCollection;
-
+            Debug.Log(_selectedCollection);
             if (_selectedCollection != null)
             {
                 Selection.activeObject = _selectedCollection;
             }
 
-            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection.name);
+            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection != null ? _selectedCollection.name : "");
 
             RenderSelectedCollectionUI();
         }
@@ -252,6 +256,16 @@ namespace Cuboid.UnityPlugin.Editor
             RenderSelectedCollectionUI();
 
             UpdateCollectionsListSelectedIndex();
+
+            DragAndDropManipulator dragAndDropManipulator = new DragAndDropManipulator(rootVisualElement, (gameObjects) =>
+            {
+                if (_selectedCollection != null)
+                {
+                    _selectedCollection.Assets.AddRange(gameObjects);
+                    if (_assetsList != null) { _assetsList.RefreshItems(); }
+                    AssetDatabase.SaveAssets();
+                }
+            });
         }
 
         /// <summary>
@@ -336,7 +350,17 @@ namespace Cuboid.UnityPlugin.Editor
             Button moreButton = new Button(() =>
             {
                 GenericMenu moreMenu = new GenericMenu();
-                moreMenu.AddItem(new GUIContent("Delete"), false, () => { });
+                moreMenu.AddItem(new GUIContent("Delete"), false, () =>
+                {
+                    if (_selectedCollection != null)
+                    {
+                        string path = AssetDatabase.GetAssetPath(_selectedCollection);
+                        AssetDatabase.DeleteAsset(path);
+                        _selectedCollection = null;
+                        AssetDatabase.Refresh();
+                        OnProjectChange();
+                    }
+                });
                 moreMenu.AddSeparator("");
                 moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
                 moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
@@ -362,7 +386,7 @@ namespace Cuboid.UnityPlugin.Editor
                 showBoundCollectionSize = true,
                 showBorder = true,
                 reorderable = true,
-                reorderMode = ListViewReorderMode.Animated,
+                reorderMode = ListViewReorderMode.Simple, // animated doesn't support reording multiple items at once
                 fixedItemHeight = (int)CurrentThumbnailSize,
                 showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = () =>
@@ -425,7 +449,9 @@ namespace Cuboid.UnityPlugin.Editor
                 },
                 itemsSource = _selectedCollection.Assets
             };
-            
+            _assetsList.itemsAdded += (_) => { AssetDatabase.SaveAssets(); };
+            _assetsList.itemsRemoved += (_) => { AssetDatabase.SaveAssets(); };
+            _assetsList.itemIndexChanged += (_, _) => { AssetDatabase.SaveAssets(); };
             _collectionView.Add(_assetsList);
 
             // Sets the selected index

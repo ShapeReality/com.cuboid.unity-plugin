@@ -239,9 +239,14 @@ namespace Cuboid.UnityPlugin.Editor
         /// <exception cref="System.Exception"></exception>
         private static AssetBundleBuild GetAssetBundleBuild(List<GameObject> assets, string name)
         {
-            if (assets == null || assets.Count == 0)
+            if (assets == null)
             {
                 throw new System.Exception("Invalid collection");
+            }
+
+            if (assets.Count == 0)
+            {
+                throw new System.Exception("Collection doesn't contain any objects");
             }
 
             string[] addressableNames = new string[assets.Count];
