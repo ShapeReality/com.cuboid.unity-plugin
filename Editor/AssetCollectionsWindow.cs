@@ -154,7 +154,6 @@ namespace Cuboid.UnityPlugin.Editor
         // called when the user performs an action inside the Unity editor
         private void OnProjectChange()
         {
-            ThumbnailProvider.EmptyCache();
             LoadAssetCollectionsInProject();
             if (_collectionsList != null) { _collectionsList.RefreshItems(); }
             UpdateCollectionsListSelectedIndex();
@@ -203,7 +202,7 @@ namespace Cuboid.UnityPlugin.Editor
             }
             else
             {
-                directory = Application.dataPath;
+                directory = "Assets/";
             }
             string targetPath = Path.Combine(directory, fileName + Constants.k_AssetExtension);
             targetPath = AssetDatabase.GenerateUniqueAssetPath(targetPath);
@@ -332,6 +331,9 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 EditorUtility.SetDirty(_selectedCollection);
                 AssetDatabase.SaveAssets();
+                // update the icon
+                _collectionsList.RefreshItem(_collections.IndexOf(_selectedCollection));
+                _collectionViewThumbnail.image = GetCollectionThumbnail(_selectedCollection);
             }
         }
 
@@ -374,6 +376,8 @@ namespace Cuboid.UnityPlugin.Editor
             return collectionsView;
         }
 
+        private Image _collectionViewThumbnail;
+
         /// <summary>
         /// Clears the view and renders the currently selected collection.
         /// If no collection is selected, it will not render anything. 
@@ -388,11 +392,13 @@ namespace Cuboid.UnityPlugin.Editor
             _collectionView.Add(header);
 
             VisualElement titleWithThumbnail = new VisualElement() { name = "TitleWithThumbnail"};
-            titleWithThumbnail.Add(new Image()
+
+            _collectionViewThumbnail = new Image()
             {
                 scaleMode = ScaleMode.ScaleToFit,
                 image = GetCollectionThumbnail(_selectedCollection)
-            });
+            };
+            titleWithThumbnail.Add(_collectionViewThumbnail);
             titleWithThumbnail.Add(new Label(_selectedCollection.name)
             {
             });
@@ -401,7 +407,7 @@ namespace Cuboid.UnityPlugin.Editor
             VisualElement buttons = new VisualElement() { name = "CollectionButtons" };
             header.Add(buttons);
 
-            Button refreshButton = new Button(() => { OnProjectChange(); });
+            Button refreshButton = new Button(() => { ThumbnailProvider.EmptyCache(); OnProjectChange(); });
             refreshButton.Add(new Image()
             {
                 image = EditorGUIUtility.IconContent("Refresh").image

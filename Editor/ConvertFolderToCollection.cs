@@ -25,7 +25,7 @@ namespace Cuboid.UnityPlugin.Editor
             string path = AssetDatabase.GetAssetPath(Selection.activeObject);
 
             string projectDirectory = ProjectDirectoryPath;
-            Debug.Log(projectDirectory);
+            //Debug.Log(projectDirectory);
 
             string fullPath = Path.Combine(projectDirectory, path);
 
