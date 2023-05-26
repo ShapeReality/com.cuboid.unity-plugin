@@ -52,7 +52,6 @@ namespace Cuboid.UnityPlugin.Editor
                 if (IsPrefab(objects[i])) { _valid = true; }
             }
 
-            target.CaptureMouse();
             UpdateVisualMode();
         }
 
@@ -65,7 +64,6 @@ namespace Cuboid.UnityPlugin.Editor
         {
             _valid = false;
             UpdateVisualMode();
-            target.ReleaseMouse();
         }
 
         private void OnDragPerform(DragPerformEvent evt)
@@ -82,14 +80,11 @@ namespace Cuboid.UnityPlugin.Editor
                 _onDragPerform?.Invoke(gameObjects);
                 DragAndDrop.AcceptDrag();
             }
-            
-            target.ReleaseMouse();
             UpdateVisualMode();
         }
 
         private void OnDragExited(DragExitedEvent evt)
         {
-            target.ReleaseMouse();
             UpdateVisualMode();
         }
 
