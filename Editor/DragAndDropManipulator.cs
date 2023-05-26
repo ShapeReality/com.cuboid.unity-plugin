@@ -86,7 +86,7 @@ namespace Cuboid.UnityPlugin.Editor
                 List<GameObject> gameObjects = new List<GameObject>();
                 for (int i = 0; i < objects.Length; i++)
                 {
-                    if (IsPrefab(objects[i])) { gameObjects.Add(objects[i] as GameObject); }
+                    if (Utils.IsPrefab(objects[i])) { gameObjects.Add(objects[i] as GameObject); }
                 }
 
                 _onDragPerform?.Invoke(gameObjects);
@@ -116,10 +116,5 @@ namespace Cuboid.UnityPlugin.Editor
             DragAndDrop.visualMode = _valid ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.None;
         }
 
-        private bool IsPrefab(Object obj)
-        {
-            GameObject gameObject = obj as GameObject;
-            return gameObject != null && gameObject.scene.name == null && gameObject.scene.rootCount == 0;
-        }
     }
 }
