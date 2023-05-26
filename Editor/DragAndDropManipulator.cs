@@ -22,12 +22,12 @@ namespace Cuboid.UnityPlugin.Editor
 
         protected override void RegisterCallbacksOnTarget()
         {
-            target.RegisterCallback<DragEnterEvent>(OnDragEnter, TrickleDown.NoTrickleDown);
-            target.RegisterCallback<DragUpdatedEvent>(OnDragUpdated, TrickleDown.NoTrickleDown);
-            target.RegisterCallback<DragLeaveEvent>(OnDragLeave, TrickleDown.NoTrickleDown);
+            target.RegisterCallback<DragEnterEvent>(OnDragEnter, TrickleDown.TrickleDown);
+            target.RegisterCallback<DragUpdatedEvent>(OnDragUpdated, TrickleDown.TrickleDown);
+            target.RegisterCallback<DragLeaveEvent>(OnDragLeave, TrickleDown.TrickleDown);
 
-            target.RegisterCallback<DragPerformEvent>(OnDragPerform, TrickleDown.NoTrickleDown);
-            target.RegisterCallback<DragExitedEvent>(OnDragExited, TrickleDown.NoTrickleDown);
+            target.RegisterCallback<DragPerformEvent>(OnDragPerform, TrickleDown.TrickleDown);
+            target.RegisterCallback<DragExitedEvent>(OnDragExited, TrickleDown.TrickleDown);
         }
 
         protected override void UnregisterCallbacksFromTarget()
@@ -51,6 +51,11 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 if (IsPrefab(objects[i])) { _valid = true; }
             }
+            if (_valid)
+            {
+                target.CaptureMouse();
+                evt.StopImmediatePropagation();
+            }
 
             UpdateVisualMode();
         }
@@ -58,12 +63,20 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnDragUpdated(DragUpdatedEvent evt)
         {
             UpdateVisualMode();
+            if (_valid)
+            {
+                evt.StopImmediatePropagation();
+            }
         }
 
         private void OnDragLeave(DragLeaveEvent evt)
         {
-            _valid = false;
             UpdateVisualMode();
+            if (_valid)
+            {
+                evt.StopImmediatePropagation();
+                target.ReleaseMouse();
+            }
         }
 
         private void OnDragPerform(DragPerformEvent evt)
@@ -79,18 +92,29 @@ namespace Cuboid.UnityPlugin.Editor
 
                 _onDragPerform?.Invoke(gameObjects);
                 DragAndDrop.AcceptDrag();
+
+                evt.StopImmediatePropagation();
+                target.ReleaseMouse();
             }
+            _valid = false;
+
             UpdateVisualMode();
         }
 
         private void OnDragExited(DragExitedEvent evt)
         {
+            if (_valid)
+            {
+                evt.StopImmediatePropagation();
+                target.ReleaseMouse();
+            }
+            _valid = false;
             UpdateVisualMode();
         }
 
         private void UpdateVisualMode()
         {
-            DragAndDrop.visualMode = _valid ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.Rejected;
+            DragAndDrop.visualMode = _valid ? DragAndDropVisualMode.Copy : DragAndDropVisualMode.None;
         }
 
         private bool IsPrefab(Object obj)
