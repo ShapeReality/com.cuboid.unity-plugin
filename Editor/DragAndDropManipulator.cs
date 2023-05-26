@@ -9,7 +9,6 @@ using Object = UnityEngine.Object;
 
 namespace Cuboid.UnityPlugin.Editor
 {
-    [DefaultExecutionOrder(1000)]
     public class DragAndDropManipulator : PointerManipulator
     {
         private Action<List<GameObject>> _onDragPerform;

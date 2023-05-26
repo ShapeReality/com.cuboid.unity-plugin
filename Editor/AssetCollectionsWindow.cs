@@ -25,7 +25,7 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_ShapeRealityUrl = "https://shapereality.io";
         private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
         private const string k_ManualUrl = "https://cuboid.readthedocs.io";
-        
+
         private const string k_StyleSheetPath = "Styles/AssetCollectionsWindow";
         private const string k_DarkIconPath = "Icons/cuboid_dark_icon";
         private const string k_LightIconPath = "Icons/cuboid_light_icon";
@@ -191,7 +191,30 @@ namespace Cuboid.UnityPlugin.Editor
 
         private void CreateNewAssetCollection()
         {
+            RealityAssetCollection collection = (RealityAssetCollection)ScriptableObject.CreateInstance(nameof(RealityAssetCollection));
+            collection.Author = Application.companyName;
 
+            string fileName = RealityAssetCollection.DefaultFileName;
+            string directory;
+            if (_selectedCollection != null)
+            {
+                string path = AssetDatabase.GetAssetPath(_selectedCollection);
+                directory = Path.GetDirectoryName(path);
+            }
+            else
+            {
+                directory = Application.dataPath;
+            }
+            string targetPath = Path.Combine(directory, fileName + Constants.k_AssetExtension);
+            targetPath = AssetDatabase.GenerateUniqueAssetPath(targetPath);
+
+            AssetDatabase.CreateAsset(collection, targetPath);
+
+            AssetDatabase.SaveAssets();
+
+            Selection.activeObject = collection;
+
+            //OnProjectChange();
         }
 
         private void DuplicateAssetCollection()

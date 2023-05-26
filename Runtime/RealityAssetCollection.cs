@@ -7,9 +7,11 @@ using Newtonsoft.Json;
 
 namespace Cuboid.UnityPlugin
 {
-    [CreateAssetMenu(fileName = "Asset Collection", menuName = "Cuboid/Asset Collection")]
+    [CreateAssetMenu(fileName = DefaultFileName, menuName = "Cuboid/Asset Collection")]
     public class RealityAssetCollection : ScriptableObject
     {
+        public const string DefaultFileName = "Asset Collection";
+
         public string Author;
 
         public DateTime CreationDate;

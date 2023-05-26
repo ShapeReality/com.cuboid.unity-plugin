@@ -6,6 +6,8 @@ namespace Cuboid.UnityPlugin
 {
     public static class Constants
     {
+        public const string k_AssetExtension = ".asset";
+
         public const int k_ThumbnailSize = 256;
 
         public const string k_ThumbnailEntryName = "thumbnail.png";
