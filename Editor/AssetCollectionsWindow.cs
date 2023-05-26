@@ -189,6 +189,39 @@ namespace Cuboid.UnityPlugin.Editor
             RenderSelectedCollectionUI();
         }
 
+        private void CreateNewAssetCollection()
+        {
+
+        }
+
+        private void DuplicateAssetCollection()
+        {
+            if (_selectedCollection != null)
+            {
+                string path = AssetDatabase.GetAssetPath(_selectedCollection);
+                string newPath = AssetDatabase.GenerateUniqueAssetPath(path);
+                bool success = AssetDatabase.CopyAsset(path, newPath);
+                if (!success)
+                {
+                    throw new Exception($"Failed to duplicate selected Asset Collection from {path} to {newPath}");
+                }
+                _selectedCollection = AssetDatabase.LoadAssetAtPath<RealityAssetCollection>(newPath);
+                OnSelectedCollectionChanged();
+            }
+        }
+
+        private void DeleteAssetCollection()
+        {
+            if (_selectedCollection != null)
+            {
+                string path = AssetDatabase.GetAssetPath(_selectedCollection);
+                AssetDatabase.DeleteAsset(path);
+                _selectedCollection = null;
+                AssetDatabase.Refresh();
+                OnProjectChange();
+            }
+        }
+
         private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
         {
             Object[] selection = new Object[indices.Count()];
@@ -228,7 +261,7 @@ namespace Cuboid.UnityPlugin.Editor
                 name = "AddMenu",
                 text = "Add"
             };
-            addMenu.menu.AppendAction("Create New Asset Collection", (_) => { });
+            addMenu.menu.AppendAction("Create New Asset Collection", (_) => { CreateNewAssetCollection(); });
             toolbar.Add(addMenu);
 
             toolbar.Add(new Image()
@@ -367,33 +400,9 @@ namespace Cuboid.UnityPlugin.Editor
                 moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
                 moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
                 moreMenu.AddSeparator("");
-                moreMenu.AddItem(new GUIContent("Duplicate"), false, () =>
-                {
-                    if (_selectedCollection != null)
-                    {
-                        string path = AssetDatabase.GetAssetPath(_selectedCollection);
-                        string newPath = AssetDatabase.GenerateUniqueAssetPath(path);
-                        bool success = AssetDatabase.CopyAsset(path, newPath);
-                        if (!success)
-                        {
-                            throw new Exception($"Failed to duplicate selected Asset Collection from {path} to {newPath}");
-                        }
-                        _selectedCollection = AssetDatabase.LoadAssetAtPath<RealityAssetCollection>(newPath);
-                        OnSelectedCollectionChanged();
-                    }
-                });
+                moreMenu.AddItem(new GUIContent("Duplicate"), false, () => DuplicateAssetCollection());
                 moreMenu.AddSeparator("");
-                moreMenu.AddItem(new GUIContent("Delete"), false, () =>
-                {
-                    if (_selectedCollection != null)
-                    {
-                        string path = AssetDatabase.GetAssetPath(_selectedCollection);
-                        AssetDatabase.DeleteAsset(path);
-                        _selectedCollection = null;
-                        AssetDatabase.Refresh();
-                        OnProjectChange();
-                    }
-                });
+                moreMenu.AddItem(new GUIContent("Delete"), false, () => DeleteAssetCollection());
 
                 moreMenu.ShowAsContext();
             });
