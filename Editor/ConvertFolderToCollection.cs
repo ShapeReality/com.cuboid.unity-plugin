@@ -20,42 +20,192 @@ namespace Cuboid.UnityPlugin.Editor
         [MenuItem(k_MenuItemName, priority = 0)]
         public static void ConvertSelectionToCollection()
         {
-            // First determine conversion type
+            Object[] objects = Selection.objects;
+            if (objects.Length == 0) { return; }
 
+            // Determine conversion type
+            ConversionType conversionType = GetConversionType();
+            
+            switch (conversionType)
+            {
+                case ConversionType.None:
+                    return;
+                case ConversionType.Batched:
+                    ConvertBatched(objects);
+                    break;
+                case ConversionType.Combine:
+                    ConvertCombined(objects);
+                    break;
+            }
+        }
 
-            //Debug.Assert(Utils.IsFolder(Selection.activeObject));
+        [MenuItem(k_MenuItemName, validate = true)]
+        public static bool ConvertSelectionToCollectionValidate()
+        {
+            // can convert folders or separate GameObjects, but not mixed.
+            // because folders will be done using batching (each folder getting their own
+            // asset collection), and GameObjects will be combined. 
 
-            //string path = AssetDatabase.GetAssetPath(Selection.activeObject);
+            Object[] selection = Selection.objects;
 
-            //string projectDirectory = ProjectDirectoryPath;
-            ////Debug.Log(projectDirectory);
+            if (selection.Length == 0) { return false; }
 
-            //string fullPath = Path.Combine(projectDirectory, path);
+            bool valid = false; // selection contains
 
-            //List<GameObject> gameObjects = new List<GameObject>();
-            //RealityAssetCollection collection = (RealityAssetCollection)ScriptableObject.CreateInstance(nameof(RealityAssetCollection));
-            //collection.Author = Application.companyName;
+            for (int i = 0; i < selection.Length; i++)
+            {
+                if (GetAssetType(selection[i]) != AssetType.Other)
+                {
+                    valid = true;
+                    break;
+                }
+            }
 
-            //// first get all files inside the folder
-            //foreach (string filePath in Directory.EnumerateFiles(fullPath, "*.*", SearchOption.AllDirectories))
-            //{
-            //    string relativePath = filePath.Substring(projectDirectory.Length+1);
-            //    Type type = AssetDatabase.GetMainAssetTypeAtPath(relativePath);
+            return valid;
+        }
 
-            //    if (type == typeof(GameObject))
-            //    {
-            //        GameObject obj = AssetDatabase.LoadAssetAtPath<GameObject>(relativePath);
-            //        //Debug.Log(relativePath);
-            //        collection.Assets.Add(obj);
-            //    }
-            //}
+        /// <summary>
+        /// Converts an array of objects (assumed to be folders)
+        /// </summary>
+        private static void ConvertBatched(Object[] objects)
+        {
+            if (objects.Length == 0) { return; }
 
-            //string targetPath = AssetDatabase.GenerateUniqueAssetPath(path + Constants.k_AssetExtension);
-            //AssetDatabase.CreateAsset(collection, targetPath);
+            // we assume all selected objects are folders, but if they're not, we skip them
 
-            //AssetDatabase.SaveAssets();
+            List<RealityAssetCollection> collections = new List<RealityAssetCollection>();
 
-            //Selection.activeObject = collection;
+            for (int i = 0; i < objects.Length; i++)
+            {
+                Object obj = objects[i];
+                if (!Utils.IsFolder(obj)) { continue; }
+                RealityAssetCollection collection = ConvertFolder(obj);
+                if (collection != null)
+                {
+                    collections.Add(collection);
+                }
+            }
+
+            // set the selection to the collections
+            if (collections.Count == 0) { return; }
+
+            Object[] selection = new Object[collections.Count];
+            for (int i = 0; i < collections.Count; i++)
+            {
+                selection[i] = collections[i];
+            }
+            Selection.objects = selection;
+        }
+
+        private static void ConvertCombined(Object[] objects)
+        {
+            if (objects.Length == 0) { return; }
+
+            List<GameObject> prefabs = new List<GameObject>();
+
+            Object lastValidObject = null;
+            for (int i = 0; i < objects.Length; i++)
+            {
+                Object obj = objects[i];
+                
+                if (Utils.IsFolder(obj))
+                {
+                    List<GameObject> gameObjects = GetPrefabsInFolder(obj);
+                    prefabs.AddRange(gameObjects);
+                    if (gameObjects.Count > 0)
+                    {
+                        lastValidObject = obj;
+                    }
+                }
+                else if (Utils.IsPrefab(obj))
+                {
+                    GameObject gameObject = obj as GameObject;
+                    prefabs.Add(gameObject);
+                    lastValidObject = obj;
+                }
+            }
+
+            if (prefabs.Count == 0) { return; }
+
+            // now create an asset collection, use the last object as the place where the collection will be
+            // created
+            string path = AssetDatabase.GetAssetPath(lastValidObject);
+            int index = path.LastIndexOf('.');
+            path = index != -1 ? path.Substring(0, index) : path; // remove the .prefab or .fbx from the file name
+            string targetPath = path + Constants.k_AssetExtension;
+            RealityAssetCollection collection = CreateAssetCollection(prefabs, targetPath);
+
+            // set the selection
+            if (collection != null)
+            {
+                Selection.activeObject = collection;
+            }
+        }
+
+        /// <summary>
+        /// Recursively find all GameObjects that are
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        private static List<GameObject> GetPrefabsInFolder(Object obj)
+        {
+            List<GameObject> objects = new List<GameObject>();
+            if (!Utils.IsFolder(obj)) { return objects; }
+
+            string path = AssetDatabase.GetAssetPath(obj);
+            string projectDirectory = ProjectDirectoryPath;
+            string fullPath = Path.Combine(projectDirectory, path);
+
+            // first get all files inside the folder
+            foreach (string filePath in Directory.EnumerateFiles(fullPath, "*.*", SearchOption.AllDirectories))
+            {
+                string relativePath = filePath.Substring(projectDirectory.Length + 1);
+                Type type = AssetDatabase.GetMainAssetTypeAtPath(relativePath);
+
+                if (type == typeof(GameObject))
+                {
+                    GameObject gameObject = AssetDatabase.LoadAssetAtPath<GameObject>(relativePath);
+                    if (gameObject != null)
+                    {
+                        objects.Add(gameObject);
+                    }
+                }
+            }
+
+            return objects;
+        }
+
+        /// <summary>
+        /// Creates 
+        /// </summary>
+        /// <param name="objects"></param>
+        /// <param name="targetPath"></param>
+        /// <returns></returns>
+        private static RealityAssetCollection CreateAssetCollection(List<GameObject> objects, string targetPath)
+        {
+            RealityAssetCollection collection = (RealityAssetCollection)ScriptableObject.CreateInstance(nameof(RealityAssetCollection));
+            collection.Author = Application.companyName;
+            collection.Assets = objects;
+
+            targetPath = AssetDatabase.GenerateUniqueAssetPath(targetPath); // make sure there's no naming colision with a previously generated asset collection.  
+            AssetDatabase.CreateAsset(collection, targetPath);
+            AssetDatabase.SaveAssets();
+
+            return collection;
+        }
+
+        /// <summary>
+        /// Converts a folder to an asset collection, which will be saved next to the folder location. 
+        /// </summary>
+        private static RealityAssetCollection ConvertFolder(Object obj)
+        {
+            if (obj == null || !Utils.IsFolder(obj)) { return null; }
+
+            List<GameObject> gameObjects = GetPrefabsInFolder(obj);
+            string targetPath = AssetDatabase.GetAssetPath(obj) + Constants.k_AssetExtension;
+
+            RealityAssetCollection collection = CreateAssetCollection(gameObjects, targetPath);
+            return collection;
         }
 
         private enum AssetType
@@ -127,32 +277,5 @@ namespace Cuboid.UnityPlugin.Editor
                 return dataPath.Substring(0, dataPath.Length - "/Assets".Length);
             }
         }
-
-        [MenuItem(k_MenuItemName, validate = true)]
-        public static bool ConvertSelectionToCollectionValidate()
-        {
-            // can convert folders or separate GameObjects, but not mixed.
-            // because folders will be done using batching (each folder getting their own
-            // asset collection), and GameObjects will be combined. 
-
-            Object[] selection = Selection.objects;
-
-            if (selection.Length == 0) { return false; }
-
-            bool valid = false; // selection contains
-
-            for (int i = 0; i < selection.Length; i++)
-            {
-                if (GetAssetType(selection[i]) != AssetType.Other)
-                {
-                    valid = true;
-                    break;
-                }
-            }
-
-            return valid;
-        }
-
-        
     }
 }

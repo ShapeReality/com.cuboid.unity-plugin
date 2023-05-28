@@ -384,6 +384,10 @@ namespace Cuboid.UnityPlugin.Editor
         /// </summary>
         private void RenderSelectedCollectionUI()
         {
+            if (_collectionView == null)
+            {
+                return;
+            }
             _collectionView.Clear();
 
             if (_selectedCollection == null) { return; }

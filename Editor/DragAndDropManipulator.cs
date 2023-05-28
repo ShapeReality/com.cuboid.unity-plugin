@@ -48,7 +48,7 @@ namespace Cuboid.UnityPlugin.Editor
             _valid = false;
             for (int i = 0; i < objects.Length; i++)
             {
-                if (IsPrefab(objects[i])) { _valid = true; }
+                if (Utils.IsPrefab(objects[i])) { _valid = true; }
             }
             if (_valid)
             {
