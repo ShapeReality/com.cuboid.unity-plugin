@@ -190,9 +190,6 @@ namespace Cuboid.UnityPlugin.Editor
 
         private void CreateNewAssetCollection()
         {
-            RealityAssetCollection collection = (RealityAssetCollection)ScriptableObject.CreateInstance(nameof(RealityAssetCollection));
-            collection.Author = Application.companyName;
-
             string fileName = RealityAssetCollection.DefaultFileName;
             string directory;
             if (_selectedCollection != null)
@@ -205,15 +202,8 @@ namespace Cuboid.UnityPlugin.Editor
                 directory = "Assets/";
             }
             string targetPath = Path.Combine(directory, fileName + Constants.k_AssetExtension);
-            targetPath = AssetDatabase.GenerateUniqueAssetPath(targetPath);
-
-            AssetDatabase.CreateAsset(collection, targetPath);
-
-            AssetDatabase.SaveAssets();
-
+            RealityAssetCollection collection = Utils.CreateAssetCollection(new List<GameObject>(), targetPath);
             Selection.activeObject = collection;
-
-            //OnProjectChange();
         }
 
         private void DuplicateAssetCollection()

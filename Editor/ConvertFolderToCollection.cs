@@ -133,7 +133,7 @@ namespace Cuboid.UnityPlugin.Editor
             int index = path.LastIndexOf('.');
             path = index != -1 ? path.Substring(0, index) : path; // remove the .prefab or .fbx from the file name
             string targetPath = path + Constants.k_AssetExtension;
-            RealityAssetCollection collection = CreateAssetCollection(prefabs, targetPath);
+            RealityAssetCollection collection = Utils.CreateAssetCollection(prefabs, targetPath);
 
             // set the selection
             if (collection != null)
@@ -176,25 +176,6 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         /// <summary>
-        /// Creates 
-        /// </summary>
-        /// <param name="objects"></param>
-        /// <param name="targetPath"></param>
-        /// <returns></returns>
-        private static RealityAssetCollection CreateAssetCollection(List<GameObject> objects, string targetPath)
-        {
-            RealityAssetCollection collection = (RealityAssetCollection)ScriptableObject.CreateInstance(nameof(RealityAssetCollection));
-            collection.Author = Application.companyName;
-            collection.Assets = objects;
-
-            targetPath = AssetDatabase.GenerateUniqueAssetPath(targetPath); // make sure there's no naming colision with a previously generated asset collection.  
-            AssetDatabase.CreateAsset(collection, targetPath);
-            AssetDatabase.SaveAssets();
-
-            return collection;
-        }
-
-        /// <summary>
         /// Converts a folder to an asset collection, which will be saved next to the folder location. 
         /// </summary>
         private static RealityAssetCollection ConvertFolder(Object obj)
@@ -204,7 +185,7 @@ namespace Cuboid.UnityPlugin.Editor
             List<GameObject> gameObjects = GetPrefabsInFolder(obj);
             string targetPath = AssetDatabase.GetAssetPath(obj) + Constants.k_AssetExtension;
 
-            RealityAssetCollection collection = CreateAssetCollection(gameObjects, targetPath);
+            RealityAssetCollection collection = Utils.CreateAssetCollection(gameObjects, targetPath);
             return collection;
         }
 
