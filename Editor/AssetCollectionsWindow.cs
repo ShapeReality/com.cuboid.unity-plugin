@@ -95,10 +95,7 @@ namespace Cuboid.UnityPlugin.Editor
         /// <summary>
         /// Called whenever the project changes
         /// </summary>
-        private void OnProjectChange()
-        {
-
-        }
+        private void OnProjectChange() => _controller.OnProjectChange();
 
         private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
         {
@@ -137,8 +134,18 @@ namespace Cuboid.UnityPlugin.Editor
             // TODO: Once again, implement ListView ourselves.
             _onDelayCall = () => { OnProjectChange(); };
             EditorApplication.delayCall += _onDelayCall;
+        }
 
-            _controller.RenderSelectedCollections += RenderSelectedCollections;
+        private void OnEnable()
+        {
+            _controller.UpdateCollectionsList += UpdateCollectionsList;
+            _controller.UpdateSelectedCollections += UpdateSelectedCollections;
+        }
+
+        private void OnDisable()
+        {
+            _controller.UpdateCollectionsList -= UpdateCollectionsList;
+            _controller.UpdateSelectedCollections -= UpdateSelectedCollections;
         }
 
         private void OnDestroy()
@@ -153,6 +160,12 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 Debug.LogWarning($"Could not find style sheet at {k_StyleSheetPath}");
             }
+        }
+
+        private void UpdateCollectionsList()
+        {
+            Debug.Log("Update collections list");
+            _collectionsList.RefreshItems();
         }
 
         private void CreateGUI()
@@ -211,11 +224,14 @@ namespace Cuboid.UnityPlugin.Editor
                 },
                 bindItem = (item, index) =>
                 {
-                    RealityAssetCollection collection = _controller.Collections[index];
                     Image image = item.Q<Image>();
-                    image.image = Utils.GetCollectionThumbnail(collection);
                     Label label = item.Q<Label>();
-                    label.text = collection.name;
+
+                    RealityAssetCollection collection = (index >= 0 && index < _controller.Collections.Count) ?
+                        _controller.Collections[index] : null;
+
+                    image.image = collection != null ? Utils.GetCollectionThumbnail(collection) : ThumbnailProvider.EmptyTexture;
+                    label.text = collection != null ? collection.name : "";
                 },
                 itemsSource = _controller.Collections
             };
@@ -293,8 +309,12 @@ namespace Cuboid.UnityPlugin.Editor
         /// Clears the view and renders the currently selected collection.
         /// If no collection is selected, it will not render anything. 
         /// </summary>
-        private void RenderSelectedCollections(List<RealityAssetCollection> selectedCollections)
+        private void UpdateSelectedCollections(List<RealityAssetCollection> selectedCollections)
         {
+            List<int> indices = _controller.GetSelectedIndices();
+            _collectionsList.SetSelectionWithoutNotify(indices);
+
+            Debug.Log("Render");
             if (_collectionView == null) { return; }
             _collectionView.Clear();
 

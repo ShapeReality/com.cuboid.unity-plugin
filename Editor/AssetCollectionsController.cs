@@ -18,7 +18,8 @@ namespace Cuboid.UnityPlugin.Editor
         {
         }
 
-        public Action<List<RealityAssetCollection>> RenderSelectedCollections;
+        public Action UpdateCollectionsList;
+        public Action<List<RealityAssetCollection>> UpdateSelectedCollections;
 
         private List<RealityAssetCollection> _collections = null;
 
@@ -42,10 +43,22 @@ namespace Cuboid.UnityPlugin.Editor
             }
         }
 
+        public List<int> GetSelectedIndices()
+        {
+            List<int> indices = new List<int>();
+
+            foreach (RealityAssetCollection collection in SelectedCollections)
+            {
+                int index = _collections.IndexOf(collection);
+                if (index != -1) { indices.Add(index); }
+            }
+
+            return indices;
+        }
+
         private void OnCollectionsChanged()
         {
-            List<RealityAssetCollection> newSelectedCollections = Utils.Filter<RealityAssetCollection>(SelectedCollections);
-            SelectedCollections = newSelectedCollections;
+            
         }
 
         private void ReloadCollections()
@@ -103,7 +116,7 @@ namespace Cuboid.UnityPlugin.Editor
             Selection.objects = objects;
 
             // make sure the asset collection view gets rerendered
-            RenderSelectedCollections?.Invoke(SelectedCollections);
+            UpdateSelectedCollections?.Invoke(SelectedCollections);
         }
 
         /// <summary>
@@ -144,6 +157,16 @@ namespace Cuboid.UnityPlugin.Editor
             //{
 
             //}
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public void OnProjectChange()
+        {
+            Debug.Log("on project change");
+            Collections = GetCollectionsInProject();
+            UpdateCollectionsList?.Invoke();
         }
 
         /// <summary>

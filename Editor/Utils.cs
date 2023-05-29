@@ -81,6 +81,8 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 DeleteAssetCollectionInternal(collection);
             }
+
+            AssetDatabase.Refresh();
         }
 
         /// <summary>
@@ -89,6 +91,8 @@ namespace Cuboid.UnityPlugin.Editor
         public static void Delete(RealityAssetCollection collection)
         {
             DeleteAssetCollectionInternal(collection);
+
+            AssetDatabase.Refresh();
         }
 
         private static void DeleteAssetCollectionInternal(RealityAssetCollection collection)
@@ -96,7 +100,6 @@ namespace Cuboid.UnityPlugin.Editor
             if (collection == null) { return; }
             string path = AssetDatabase.GetAssetPath(collection);
             AssetDatabase.DeleteAsset(path);
-            AssetDatabase.Refresh();
         }
 
         /// <summary>
@@ -112,6 +115,8 @@ namespace Cuboid.UnityPlugin.Editor
                 if (duplicatedCollection == null) { continue; }
             }
 
+            AssetDatabase.Refresh();
+
             SetSelection(duplicatedCollections);
         }
 
@@ -123,6 +128,10 @@ namespace Cuboid.UnityPlugin.Editor
         {
             RealityAssetCollection duplicatedCollection = DuplicateAssetCollectionInternal(collection);
             if (duplicatedCollection == null) { return; }
+
+            AssetDatabase.Refresh();
+
+            Debug.Log("duplicated");
 
             SetSelection(duplicatedCollection);
         }

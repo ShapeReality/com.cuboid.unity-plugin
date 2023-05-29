@@ -38,12 +38,12 @@ Toolbar
     height: 30px;
 }
 
-.collections.header
+.collection-header
 {
     height: 30px;
 }
 
-.collections-header Label
+.collection-header Label
 {
     font-size: 16px;
     -unity-font-style: bold;

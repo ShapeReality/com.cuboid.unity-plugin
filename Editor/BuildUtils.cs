@@ -112,7 +112,7 @@ namespace Cuboid.UnityPlugin.Editor
                     string titleReference = multiple ? "Asset Collections with names" : "An Asset Collection with name";
 
                     int choice = EditorUtility.DisplayDialogComplex(
-                        $"{titleReference}{joinedNames} already {(multiple ? "exist" : "exists")} at {directoryPath}.",
+                        $"{titleReference} {joinedNames} already {(multiple ? "exist" : "exists")} at {directoryPath}.",
                         $"Do you want to overwrite {undertitleReference}? This cannot be undone. ",
                         "Overwrite", "Cancel", "Save As");
 
