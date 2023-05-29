@@ -42,20 +42,34 @@ namespace Cuboid.UnityPlugin.Editor
             }
         }
 
-        private static void OnCancelBuild(RealityAssetCollection collection)
+        private static void OnCancelBuild()
         {
-            // Debug.LogWarning($"Asset Collection \"{collection.name}\" Build Cancelled");
+            // Debug.Log("Build canceled");
+        }
+
+        public static void Build(List<RealityAssetCollection> collections)
+        {
+            if (!GetTargetPaths(collections, out List<string> targetPaths))
+            {
+                OnCancelBuild();
+                return;
+            }
+
+            for (int i = 0; i < collections.Count; i++)
+            {
+                BuildInternal(collections[i], targetPaths[i]);
+            }
         }
 
         public static void Build(RealityAssetCollection collection)
         {
-            if (collection == null) { throw new System.Exception("Collection is null"); }
-            if (collection.Assets == null || collection.Assets.Count == 0) { throw new System.Exception("Collection does not contain any Assets"); }
+            Build(new List<RealityAssetCollection>() { collection });
+        }
 
-            // Step 1: Get the output path
-
+        private static bool GetTargetPaths(List<RealityAssetCollection> collections, out List<string> targetPaths)
+        {
             bool validPath = false;
-            string targetPath = null;
+            targetPaths = new List<string>(collections.Count);
 
             while (!validPath)
             {
@@ -64,7 +78,7 @@ namespace Cuboid.UnityPlugin.Editor
                 if (directoryPath == "")
                 {
                     // this means we should stop the operation because the user has canceled
-                    OnCancelBuild(collection); return;
+                    return false;
                 }
 
                 if (!Directory.Exists(directoryPath))
@@ -74,20 +88,41 @@ namespace Cuboid.UnityPlugin.Editor
 
                 LastSelectedDirectoryPath = directoryPath;
 
-                string fileName = collection.name + Constants.k_AssetCollectionFileExtension;
-                targetPath = Path.Combine(directoryPath, fileName);
-
-                if (File.Exists(targetPath))
+                List<string> existingTargetPaths = new List<string>();
+                for (int i = 0; i < collections.Count; i++)
                 {
+                    RealityAssetCollection collection = collections[i];
+                    string fileName = collection.name + Constants.k_AssetCollectionFileExtension;
+                    string targetPath = Path.Combine(directoryPath, fileName);
+
+                    if (File.Exists(targetPath)) { existingTargetPaths.Add(targetPath); }
+                    targetPaths.Add(targetPath);
+                }
+
+                if (existingTargetPaths.Count > 0)
+                {
+                    // display a dialog to ask the user whether they want to overwrite the existing files, cancel or choose a new directory path
                     // 0 = ok, 1 = cancel, 2 = alt
-                    int choice = EditorUtility.DisplayDialogComplex($"An Asset Collection with name {fileName} already exists at {directoryPath}.",
-                        "Do you want to overwrite this Asset Collection? This cannot be undone. ",
+
+                    bool multiple = existingTargetPaths.Count > 1;
+                    List<string> names = existingTargetPaths.ConvertAll((path) => Path.GetFileName(path));
+                    string joinedNames = string.Join(", ", names);
+
+                    string undertitleReference = multiple ? "these Asset Collections" : "this Asset Collection";
+                    string titleReference = multiple ? "Asset Collections with names" : "An Asset Collection with name";
+
+                    int choice = EditorUtility.DisplayDialogComplex(
+                        $"{titleReference}{joinedNames} already {(multiple ? "exist" : "exists")} at {directoryPath}.",
+                        $"Do you want to overwrite {undertitleReference}? This cannot be undone. ",
                         "Overwrite", "Cancel", "Save As");
 
-                    if (choice == 1) { OnCancelBuild(collection); return; }
+                    if (choice == 1) { return false; }
                     if (choice == 0)
                     {
-                        File.Delete(targetPath);
+                        foreach (string targetPath in existingTargetPaths)
+                        {
+                            File.Delete(targetPath);
+                        }
                         validPath = true;
                     }
                 }
@@ -96,13 +131,18 @@ namespace Cuboid.UnityPlugin.Editor
                     validPath = true;
                 }
             }
+            return true;
+        }
 
-            // Debug.Log($"Writing collection at {targetPath}");
+        private static void BuildInternal(RealityAssetCollection collection, string targetPath)
+        {
+            if (collection == null) { throw new System.Exception("Collection is null"); }
+            if (collection.Assets == null || collection.Assets.Count == 0) { throw new System.Exception("Collection does not contain any Assets"); }
 
-            // Step 2: Filter any duplicate or null objects out of the assets
+            // Filter any duplicate or null objects out of the assets
             List<GameObject> assets = FilterAssets(collection.Assets);
 
-            // Step 3: Create asset bundle build that contains asset names and addressable names,
+            // Create asset bundle build that contains asset names and addressable names,
             // these can then be used to name the thumbnails. 
             AssetBundleBuild assetBundleBuild = GetAssetBundleBuild(assets, collection.name);
 
@@ -123,7 +163,7 @@ namespace Cuboid.UnityPlugin.Editor
             string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
             File.WriteAllText(jsonPath, json);
 
-            // Step 4: Make SpriteAtlas
+            // Make SpriteAtlas
             string thumbnailsFolderGuid = AssetDatabase.CreateFolder("Assets", k_TemporaryThumbnailSpritesDirectory);
             string thumbnailsFolder = AssetDatabase.GUIDToAssetPath(thumbnailsFolderGuid);
 
@@ -136,7 +176,7 @@ namespace Cuboid.UnityPlugin.Editor
             string spriteAtlasPath = Path.Combine(thumbnailsFolder, k_SpriteAtlasFileName);
             AssetDatabase.CreateAsset(spriteAtlas, spriteAtlasPath);
 
-            // store the asset collection thumbnail in a png, simply use the first asset in the list
+            // Store the asset collection thumbnail in a png, simply use the first asset in the list
             byte[] thumbnail = AssetToThumbnailPNG(assets[0]);
             File.WriteAllBytes(Path.Combine(tempPath, Constants.k_ThumbnailEntryName), thumbnail);
 
@@ -169,7 +209,7 @@ namespace Cuboid.UnityPlugin.Editor
             spriteAtlas.Add(sprites);
             AssetDatabase.SaveAssets();
 
-            // Step 5: Add the Sprite Atlas to the asset bundle build
+            // Add the Sprite Atlas to the asset bundle build
             assetBundleBuild.Add(spriteAtlasPath, Constants.k_AssetCollectionSpriteAtlasName);
 
             // Build the asset bundle to the temporary directory
@@ -180,7 +220,7 @@ namespace Cuboid.UnityPlugin.Editor
             BuildTarget buildTarget = BuildTarget.Android;
             BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
 
-            // put the contents of the files at the jsonPath and the assetBundlePath into a zip file
+            // Put the contents of the files at the jsonPath and the assetBundlePath into a zip file
             ZipFile.CreateFromDirectory(tempPath, targetPath);
 
             // Finally: Remove all thumbnail sprites from assets

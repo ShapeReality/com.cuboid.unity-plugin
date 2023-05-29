@@ -28,35 +28,35 @@ Toolbar
     justify-content: space-between;
 }
 
-#ToolbarLogo
+.collections-toolbar-logo
 {
     max-width: 100px;
 }
 
-#AssetCollectionsToolbar
+.collections-toolbar
 {
     height: 30px;
 }
 
-#CollectionHeader
+.collections.header
 {
     height: 30px;
 }
 
-#CollectionHeader Label
+.collections-header Label
 {
     font-size: 16px;
     -unity-font-style: bold;
     -unity-text-align: middle-left;
 }
 
-#TitleWithThumbnail
+.title-with-thumbnail
 {
     flex-direction: row;
     justify-content: flex-start;
 }
 
-#TitleWithThumbnail Image
+.title-with-thumbnail Image
 {
     margin-left: 2px;
     margin-right: 2px;
@@ -65,13 +65,13 @@ Toolbar
     flex-shrink: 0;
 }
 
-#CollectionButtons
+.collection-buttons
 {
     flex-direction: row;
     justify-content: flex-end;
 }
 
-#CollectionButtons Button
+.collection-buttons Button
 {
     align-items: center;
     justify-content: center;
