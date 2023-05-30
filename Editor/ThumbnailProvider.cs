@@ -57,6 +57,14 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         /// <summary>
+        /// Simply uses the thumbnail of the first item in the Asset Collection
+        /// </summary>
+        public static Texture2D GetCollectionThumbnail(RealityAssetCollection collection)
+        {
+            return GetThumbnail((collection != null && collection.Assets.Count > 0) ? collection.Assets[0] : null);
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="gameObject"></param>

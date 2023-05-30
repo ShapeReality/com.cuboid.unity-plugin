@@ -67,14 +67,6 @@ namespace Cuboid.UnityPlugin.Editor
         /// <summary>
         /// 
         /// </summary>
-        public static Texture2D GetCollectionThumbnail(RealityAssetCollection collection)
-        {
-            return ThumbnailProvider.GetThumbnail((collection != null && collection.Assets.Count > 0) ? collection.Assets[0] : null);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
         public static void Delete(List<RealityAssetCollection> collections)
         {
             foreach (RealityAssetCollection collection in collections)
