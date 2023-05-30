@@ -334,6 +334,7 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         private List<RealityAssetCollection> _lastRendered = null;
+        private ThumbnailSize _lastThumbnailSize = ThumbnailSize.NotInitialized;
         private ListView _assetsList = null;
         private Label _headerTitle = null;
 
@@ -348,7 +349,8 @@ namespace Cuboid.UnityPlugin.Editor
 
             if (_collectionView == null) { return; }
 
-            if (_assetsList != null && selectedCollections.Count == 1 && _lastRendered.Equals(selectedCollections))
+            if (_assetsList != null && selectedCollections.Count == 1 &&
+                _lastThumbnailSize == _controller.ThumbnailSize && _lastRendered.Equals(selectedCollections))
             {
                 RealityAssetCollection collection = selectedCollections[0];
                 // update the list, instead of recreating it
@@ -377,6 +379,7 @@ namespace Cuboid.UnityPlugin.Editor
                 _collectionView.Add(_assetsList);
 
                 _lastRendered = selectedCollections;
+                _lastThumbnailSize = _controller.ThumbnailSize;
 
                 List<int> assetsIndices = _controller.GetSelectedAssetsIndices();
                 _assetsList.SetSelectionWithoutNotify(assetsIndices);
