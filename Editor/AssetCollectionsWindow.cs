@@ -51,19 +51,25 @@ namespace Cuboid.UnityPlugin.Editor
         private Image _collectionViewThumbnail;
         private EditorApplication.CallbackFunction _onDelayCall;
 
+        private Action OnSelectionChanged;
+        private Action OnProjectChanged;
+
         /// <summary>
         /// Called when the <see cref="Selection.objects"/> changes
         /// </summary>
-        private void OnSelectionChange() => _controller.OnSelectionChange();
+        private void OnSelectionChange() => OnSelectionChanged?.Invoke();
 
         /// <summary>
         /// Called whenever the project changes
         /// </summary>
-        private void OnProjectChange() => _controller.OnProjectChange();
+        private void OnProjectChange() => OnProjectChanged?.Invoke();
 
         private void Awake()
         {
             LoadStyleSheet();
+
+            OnSelectionChanged += _controller.OnSelectionChange;
+            OnProjectChanged += _controller.OnProjectChange;
 
             // HACK: There is a bug in the ListView that makes it so that it doesn't render the items
             // when changing between thumbnail sizes, so this will make sure it does.
@@ -116,10 +122,11 @@ namespace Cuboid.UnityPlugin.Editor
             // add menu
             ToolbarMenu addMenu = new ToolbarMenu() { text = "Add" }; toolbar.Add(addMenu);
             addMenu.menu.AppendAction("Create New Asset Collection", (_) => _controller.CreateNewAssetCollection());
-            addMenu.menu.AppendAction(
+            DropdownMenuAction item = new DropdownMenuAction(
                 "Convert Selection to Asset Collection",
-                (_) => FolderToCollection.ConvertSelectionToCollection(),
-                FolderToCollection.ConvertSelectionToCollectionValidate() ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+                (_) => ConvertToCollection.ConvertSelectionToCollection(),
+                (_) => ConvertToCollection.ConvertSelectionToCollectionValidate() ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            addMenu.menu.MenuItems().Add(item);
 
             // logo
             Image logo = new Image() { image = GetLogo() }; logo.AddToClassList(k_CollectionsToolbarLogo); toolbar.Add(logo);
@@ -241,8 +248,8 @@ namespace Cuboid.UnityPlugin.Editor
                 moreMenu.AddItem(new GUIContent("Medium"), _controller.ThumbnailSize == ThumbnailSize.Medium, () => { _controller.ThumbnailSize = ThumbnailSize.Medium; });
                 moreMenu.AddItem(new GUIContent("Large"), _controller.ThumbnailSize == ThumbnailSize.Large, () => { _controller.ThumbnailSize = ThumbnailSize.Large; });
                 moreMenu.AddSeparator("");
+                moreMenu.AddDisabledItem(new GUIContent(title));
                 moreMenu.AddItem(new GUIContent("Duplicate"), false, OnDuplicateButtonPressed);
-                moreMenu.AddSeparator("");
                 moreMenu.AddItem(new GUIContent("Delete"), false, OnDeleteButtonPressed);
                 moreMenu.ShowAsContext();
             });
@@ -271,6 +278,7 @@ namespace Cuboid.UnityPlugin.Editor
                     data.Title.text = collection.name;
                     data.Subscript.text = AssetDatabase.GetAssetPath(collection);
                     data.MiniThumbnail.image = AssetPreview.GetMiniThumbnail(collection);
+                    data.Subscript2.text = nameof(RealityAssetCollection);
                 },
                 itemsSource = selectedCollections
             };

@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 namespace Cuboid.UnityPlugin.Editor
 {
-    public static class FolderToCollection
+    public static class ConvertToCollection
     {
         private const string k_MenuItemName = "Assets/Convert to Asset Collection";
 

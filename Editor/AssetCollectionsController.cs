@@ -70,7 +70,7 @@ namespace Cuboid.UnityPlugin.Editor
             return collections;
         }
 
-        private string k_SelectedCollectionsKey = "selected-collections";
+        private const string k_SelectedCollectionsKey = "selected-collections";
         private List<RealityAssetCollection> _selectedCollections;
 
         /// <summary>
@@ -162,13 +162,13 @@ namespace Cuboid.UnityPlugin.Editor
             SelectedAssets = newAssets;
         }
 
-        private string k_SelectedAssetsKey = "selected-assets";
+        private const string k_SelectedAssetsKey = "selected-assets";
         private string SelectedAssetsKey
         {
             get
             {
                 RealityAssetCollection collection = SelectedCollection;
-                return string.Join('_', k_SelectedCollectionsKey, collection.name);
+                return string.Join('_', k_SelectedAssetsKey, collection.name);
             }
         }
 
