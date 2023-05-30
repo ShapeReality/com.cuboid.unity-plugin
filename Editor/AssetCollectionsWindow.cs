@@ -90,10 +90,6 @@ namespace Cuboid.UnityPlugin.Editor
             _controller.UpdateThumbnail -= UpdateThumbnail;
         }
 
-        private void OnDestroy()
-        {
-        }
-
         private void LoadStyleSheet()
         {
             _styleSheet = Resources.Load<StyleSheet>(k_StyleSheetPath);
@@ -337,6 +333,9 @@ namespace Cuboid.UnityPlugin.Editor
             return assetsList;
         }
 
+        private List<RealityAssetCollection> _lastRendered = null;
+        private ListView _assetsList = null;
+
         /// <summary>
         /// Clears the view and renders the currently selected collection.
         /// If no collection is selected, it will not render anything. 
@@ -347,6 +346,15 @@ namespace Cuboid.UnityPlugin.Editor
             _collectionsList.SetSelectionWithoutNotify(indices);
 
             if (_collectionView == null) { return; }
+
+            if (_assetsList != null && selectedCollections.Count == 1 && _lastRendered.Equals(selectedCollections))
+            {
+                // update the list, instead of recreating it
+                _assetsList.itemsSource = selectedCollections[0].Assets;
+                _assetsList.RefreshItems();
+                return;
+            }
+
             _collectionView.Clear();
 
             if (selectedCollections == null || selectedCollections.Count == 0)
@@ -362,11 +370,13 @@ namespace Cuboid.UnityPlugin.Editor
             if (selectedCollections.Count == 1)
             {
                 // renders the list of Assets that are inside the singular selected collection
-                ListView assetsList = RenderAssetCollectionList(selectedCollections[0]);
-                _collectionView.Add(assetsList);
+                _assetsList = RenderAssetCollectionList(selectedCollections[0]);
+                _collectionView.Add(_assetsList);
+
+                _lastRendered = selectedCollections;
 
                 List<int> assetsIndices = _controller.GetSelectedAssetsIndices();
-                assetsList.SetSelectionWithoutNotify(assetsIndices);
+                _assetsList.SetSelectionWithoutNotify(assetsIndices);
             }
             else
             {
