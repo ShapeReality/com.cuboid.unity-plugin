@@ -51,8 +51,9 @@ namespace Cuboid.UnityPlugin.Editor
         private Image _headerThumbnail;
         private EditorApplication.CallbackFunction _onDelayCall;
 
-        private Action OnSelectionChanged;
-        private Action OnProjectChanged;
+        private event Action OnSelectionChanged;
+        private event Action OnProjectChanged;
+        private event Action OnInspectorUpdated;
 
         /// <summary>
         /// Called when the <see cref="Selection.objects"/> changes
@@ -73,6 +74,7 @@ namespace Cuboid.UnityPlugin.Editor
         {
             OnSelectionChanged += _controller.OnSelectionChange;
             OnProjectChanged += _controller.OnProjectChange;
+            OnInspectorUpdated += _controller.OnInspectorUpdate;
             _controller.UpdateCollectionsList += UpdateCollectionsList;
             _controller.UpdateSelectedCollections += UpdateSelectedCollections;
             _controller.UpdateThumbnail += UpdateThumbnail;
@@ -82,6 +84,7 @@ namespace Cuboid.UnityPlugin.Editor
         {
             OnSelectionChanged -= _controller.OnSelectionChange;
             OnProjectChanged -= _controller.OnProjectChange;
+            OnInspectorUpdated -= _controller.OnInspectorUpdate;
             _controller.UpdateCollectionsList -= UpdateCollectionsList;
             _controller.UpdateSelectedCollections -= UpdateSelectedCollections;
             _controller.UpdateThumbnail -= UpdateThumbnail;
@@ -99,6 +102,8 @@ namespace Cuboid.UnityPlugin.Editor
                 Debug.LogWarning($"Could not find style sheet at {k_StyleSheetPath}");
             }
         }
+
+        private void OnInspectorUpdate() => OnInspectorUpdated?.Invoke();
 
         private void UpdateCollectionsList()
         {

@@ -270,6 +270,20 @@ namespace Cuboid.UnityPlugin.Editor
             UpdateThumbnail?.Invoke();
         }
 
+        public bool TryGetSelectedCollection(out RealityAssetCollection collection)
+        {
+            try
+            {
+                collection = SelectedCollection;
+                return true;
+            }
+            catch
+            {
+                collection = null;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Gets the singularly selected collection, WARNING: throws errors if more or less
         /// collections are selected than 1, and if the selected collection is invalid (null or Assets is null). 
@@ -305,21 +319,31 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        public void OnInspectorUpdate()
+        {
+            if (TryGetSelectedCollection(out RealityAssetCollection collection))
+            {
+                if (EditorUtility.IsDirty(collection))
+                {
+                    UpdateSelectedCollections?.Invoke(SelectedCollections);
+                    AssetDatabase.SaveAssetIfDirty(collection);
+                }
+            }
+        }
+
+        /// <summary>
         /// Called by <see cref="DragAndDropManipulator"/> on drag performed,
         /// already filtered, so we can assume that the provided GameObjects are prefabs. 
         /// </summary>
         public void OnDragPerformed(List<GameObject> prefabs)
         {
-            try
+            if (TryGetSelectedCollection(out RealityAssetCollection collection))
             {
-                RealityAssetCollection collection = SelectedCollection;
                 collection.Assets.AddRange(prefabs);
                 UpdateSelectedCollections?.Invoke(SelectedCollections);
                 OnAssetsListChanged();
-            }
-            catch (Exception)
-            {
-
             }
         }
 
