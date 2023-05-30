@@ -244,15 +244,17 @@ namespace Cuboid.UnityPlugin.Editor
         }
 
         /// <summary>
-        /// Called on <see cref="ListView.itemsAdded"/>, <see cref="ListView.itemsRemoved"/>
-        /// and <see cref="ListView.itemIndexChanged"/>. Will save the collection to disk
+        /// Called on <see cref="ListView.itemsAdded"/>, <see cref="ListView.itemsRemoved"/>, <see cref="ListView.itemIndexChanged"/>
+        ///
+        /// and <see cref="OnDragPerformed"/>
+        ///
+        /// Will save the collection to disk.
         /// </summary>
         public void OnAssetsListChanged()
         {
             AssetDatabase.SaveAssetIfDirty(SelectedCollection);
             // update the thumbnail
             UpdateThumbnail?.Invoke();
-
         }
 
         /// <summary>
@@ -288,6 +290,27 @@ namespace Cuboid.UnityPlugin.Editor
             UpdateCollectionsList?.Invoke();
         }
 
+        /// <summary>
+        /// Called by <see cref="DragAndDropManipulator"/> on drag performed,
+        /// already filtered, so we can assume that the provided GameObjects are prefabs. 
+        /// </summary>
+        public void OnDragPerformed(List<GameObject> prefabs)
+        {
+            try
+            {
+                RealityAssetCollection collection = SelectedCollection;
+                collection.Assets.AddRange(prefabs);
+                UpdateSelectedCollections?.Invoke(SelectedCollections);
+                OnAssetsListChanged();
+            }
+            catch (Exception)
+            {
+
+            }
+        }
+
+        #region Thumbnail
+
         private const string k_ThumbnailSizeKey = "thumbnail-size";
         private ThumbnailSize _thumbnailSize = ThumbnailSize.NotInitialized;
         public ThumbnailSize ThumbnailSize
@@ -313,6 +336,8 @@ namespace Cuboid.UnityPlugin.Editor
         {
             UpdateSelectedCollections?.Invoke(SelectedCollections);
         }
+
+        #endregion
 
         /// <summary>
         /// Creates new asset collection

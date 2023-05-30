@@ -151,6 +151,8 @@ namespace Cuboid.UnityPlugin.Editor
             
             _collectionView = new VisualElement();
             splitView.Add(_collectionView);
+
+            rootVisualElement.AddManipulator(new DragAndDropManipulator(rootVisualElement, _controller.OnDragPerformed));
         }
 
         /// <summary>
