@@ -164,7 +164,6 @@ namespace Cuboid.UnityPlugin.Editor
         /// </summary>
         public void OnProjectChange()
         {
-            Debug.Log("on project change");
             Collections = GetCollectionsInProject();
             UpdateCollectionsList?.Invoke();
         }

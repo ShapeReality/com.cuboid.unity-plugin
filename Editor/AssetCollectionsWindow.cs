@@ -164,8 +164,8 @@ namespace Cuboid.UnityPlugin.Editor
 
         private void UpdateCollectionsList()
         {
-            Debug.Log("Update collections list");
-            _collectionsList.RefreshItems();
+            // important to update the itemsSource
+            _collectionsList.itemsSource = _controller.Collections; 
         }
 
         private void CreateGUI()
@@ -266,14 +266,17 @@ namespace Cuboid.UnityPlugin.Editor
 
             // determine thumbnail and title
             bool multiple = selectedCollections.Count > 1;
-            Texture2D image = multiple ? ThumbnailProvider.EmptyTexture : Utils.GetCollectionThumbnail(selectedCollections[0]);
+            Texture2D image = multiple ? null : Utils.GetCollectionThumbnail(selectedCollections[0]);
             string title = multiple ? "<Multiple>" : selectedCollections[0].name;
 
             // title with thumbnail
             VisualElement titleWithThumbnail = new VisualElement(); titleWithThumbnail.AddToClassList(k_TitleWithThumbnail); header.Add(titleWithThumbnail);
 
-            Image thumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
-            titleWithThumbnail.Add(thumbnail);
+            if (image != null)
+            {
+                Image thumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
+                titleWithThumbnail.Add(thumbnail);
+            }
             titleWithThumbnail.Add(new Label(title));
 
             // buttons
@@ -314,7 +317,6 @@ namespace Cuboid.UnityPlugin.Editor
             List<int> indices = _controller.GetSelectedIndices();
             _collectionsList.SetSelectionWithoutNotify(indices);
 
-            Debug.Log("Render");
             if (_collectionView == null) { return; }
             _collectionView.Clear();
 

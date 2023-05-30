@@ -113,6 +113,7 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 RealityAssetCollection duplicatedCollection = DuplicateAssetCollectionInternal(collection);
                 if (duplicatedCollection == null) { continue; }
+                duplicatedCollections.Add(duplicatedCollection);
             }
 
             AssetDatabase.Refresh();
@@ -130,8 +131,6 @@ namespace Cuboid.UnityPlugin.Editor
             if (duplicatedCollection == null) { return; }
 
             AssetDatabase.Refresh();
-
-            Debug.Log("duplicated");
 
             SetSelection(duplicatedCollection);
         }
@@ -153,6 +152,7 @@ namespace Cuboid.UnityPlugin.Editor
 
         public static void SetSelection<T>(T selection) where T : Object
         {
+            Selection.objects = new Object[] { selection };
             Selection.activeObject = selection;
         }
 
