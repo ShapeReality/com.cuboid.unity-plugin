@@ -7,8 +7,10 @@ namespace Cuboid.UnityPlugin.Editor
     public enum ThumbnailSize
     {
         NotInitialized = 0,
-        Small = 64,
-        Medium = 128,
-        Large = 256
+        Microscopic = 16,
+        Small = 32,
+        Medium = 64,
+        Large = 128,
+        Gigantic = 256
     }
 }

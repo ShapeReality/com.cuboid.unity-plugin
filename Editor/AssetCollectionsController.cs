@@ -357,7 +357,7 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 if (_thumbnailSize == ThumbnailSize.NotInitialized)
                 {
-                    _thumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Small);
+                    _thumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Medium);
                 }
                 return _thumbnailSize;
             }

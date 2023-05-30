@@ -255,9 +255,12 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 GenericMenu moreMenu = new GenericMenu();
                 moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
-                moreMenu.AddItem(new GUIContent("Small"), _controller.ThumbnailSize == ThumbnailSize.Small, () => { _controller.ThumbnailSize = ThumbnailSize.Small; });
-                moreMenu.AddItem(new GUIContent("Medium"), _controller.ThumbnailSize == ThumbnailSize.Medium, () => { _controller.ThumbnailSize = ThumbnailSize.Medium; });
-                moreMenu.AddItem(new GUIContent("Large"), _controller.ThumbnailSize == ThumbnailSize.Large, () => { _controller.ThumbnailSize = ThumbnailSize.Large; });
+                void AddItem(ThumbnailSize size) => moreMenu.AddItem(new GUIContent(size.ToString()), _controller.ThumbnailSize == size, () => { _controller.ThumbnailSize = size; });
+                AddItem(ThumbnailSize.Microscopic);
+                AddItem(ThumbnailSize.Small);
+                AddItem(ThumbnailSize.Medium);
+                AddItem(ThumbnailSize.Large);
+                AddItem(ThumbnailSize.Gigantic);
                 moreMenu.AddSeparator("");
                 moreMenu.AddDisabledItem(new GUIContent(title));
                 moreMenu.AddItem(new GUIContent("Duplicate"), false, OnDuplicateButtonPressed);
@@ -283,7 +286,7 @@ namespace Cuboid.UnityPlugin.Editor
                 makeItem = RenderAssetCollectionListItem,
                 bindItem = (item, index) =>
                 {
-                    AssetCollectionListItemData data = new(item);
+                    AssetCollectionListItemData data = new AssetCollectionListItemData(_controller, item);
                     RealityAssetCollection collection = selectedCollections[index];
                     data.Thumbnail.image = ThumbnailProvider.GetCollectionThumbnail(collection);
                     data.Title.text = collection.name;
@@ -316,7 +319,7 @@ namespace Cuboid.UnityPlugin.Editor
                 makeItem = RenderAssetCollectionListItem,
                 bindItem = (item, index) =>
                 {
-                    AssetCollectionListItemData data = new AssetCollectionListItemData(item);
+                    AssetCollectionListItemData data = new AssetCollectionListItemData(_controller, item);
                     GameObject asset = collection.Assets[index];
                     data.Thumbnail.image = ThumbnailProvider.GetThumbnail(asset);
                     data.Title.text = asset != null ? asset.name : "None (Game Object)";
@@ -428,7 +431,7 @@ namespace Cuboid.UnityPlugin.Editor
             };
             miniThumbnail.AddToClassList(k_AssetMetadataMiniThumbnail);
             subscript2.Add(miniThumbnail);
-
+            
             Label objectType = new Label();
             objectType.AddToClassList(k_AssetMetadataObjectType);
             subscript2.Add(objectType);
@@ -449,13 +452,21 @@ namespace Cuboid.UnityPlugin.Editor
             public Image MiniThumbnail { get; private set; }
             public Label Subscript2 { get; private set; }
 
-            public AssetCollectionListItemData(VisualElement item)
+            public AssetCollectionListItemData(AssetCollectionsController controller, VisualElement item)
             {
                 Thumbnail = item.Q<Image>();
                 Title = item.Q<Label>(className: k_AssetMetadataTitle);
                 Subscript = item.Q<Label>(className: k_AssetMetadataSubscript);
                 MiniThumbnail = item.Q<Image>(className: k_AssetMetadataMiniThumbnail);
                 Subscript2 = item.Q<Label>(className: k_AssetMetadataObjectType);
+
+                // set visibility depending on the size of the visual element
+                bool showSubscript = controller.ThumbnailSize >= ThumbnailSize.Small;
+                Subscript.visible = showSubscript;
+
+                bool showSubscript2 = controller.ThumbnailSize >= ThumbnailSize.Medium;
+                MiniThumbnail.visible = showSubscript2;
+                Subscript2.visible = showSubscript2;
             }
         }
 
