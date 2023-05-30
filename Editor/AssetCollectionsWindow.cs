@@ -229,7 +229,7 @@ namespace Cuboid.UnityPlugin.Editor
             // title with thumbnail
             VisualElement titleWithThumbnail = new VisualElement(); titleWithThumbnail.AddToClassList(k_TitleWithThumbnail); header.Add(titleWithThumbnail);
 
-            if (image != null)
+            if (!multiple)
             {
                 _headerThumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
                 titleWithThumbnail.Add(_headerThumbnail);
