@@ -48,7 +48,8 @@ namespace Cuboid.UnityPlugin.Editor
 
         private void OnCollectionsChanged()
         {
-
+            // remove the collections that are no longer in Collections from SelectedCollections
+            SelectedCollections = Utils.Filter<RealityAssetCollection>(SelectedCollections, (o) => { return o != null && Collections.Contains(o); });
         }
 
         private void ReloadCollections()
@@ -164,7 +165,6 @@ namespace Cuboid.UnityPlugin.Editor
 
             List<GameObject> newAssets = Utils.GetPrefabsInObjects(objects);
             SelectedAssets = newAssets;
-            Debug.Log("set selected assets");
         }
 
         private const string k_SelectedAssetsKey = "selected-assets";
@@ -206,10 +206,19 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnSelectedAssetsChanged()
         {
             if (_selectedAssets == null) { return; } // invalid, so don't try to store
+
             // set the selection
             // set the current selection
             Object[] objects = SelectedAssets.ToArray<Object>();
-            Selection.objects = objects;
+
+            if (objects.Length > 0)
+            {
+                Selection.objects = objects;
+            }
+            else
+            {
+                Selection.activeObject = SelectedCollection;
+            }
 
             EditorPrefs.SetString(SelectedAssetsKey, SelectedAssets.ToPaths().ToJson());
         }
@@ -223,7 +232,8 @@ namespace Cuboid.UnityPlugin.Editor
             List<GameObject> objects = new List<GameObject>();
             foreach (int index in indices)
             {
-                objects.Add(collection.Assets[index]);
+                GameObject asset = collection.Assets[index];
+                if (asset != null) { objects.Add(asset); }
             }
             SelectedAssets = objects;
         }
@@ -252,7 +262,10 @@ namespace Cuboid.UnityPlugin.Editor
         /// </summary>
         public void OnAssetsListChanged()
         {
-            AssetDatabase.SaveAssetIfDirty(SelectedCollection);
+            RealityAssetCollection collection = SelectedCollection;
+            EditorUtility.SetDirty(collection);
+            AssetDatabase.SaveAssetIfDirty(collection);
+
             // update the thumbnail
             UpdateThumbnail?.Invoke();
         }
@@ -288,6 +301,7 @@ namespace Cuboid.UnityPlugin.Editor
         {
             Collections = GetCollectionsInProject();
             UpdateCollectionsList?.Invoke();
+            UpdateSelectedCollections?.Invoke(SelectedCollections);
         }
 
         /// <summary>
