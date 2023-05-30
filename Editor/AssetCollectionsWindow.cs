@@ -48,7 +48,7 @@ namespace Cuboid.UnityPlugin.Editor
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
-        private Image _collectionViewThumbnail;
+        private Image _headerThumbnail;
         private EditorApplication.CallbackFunction _onDelayCall;
 
         private Action OnSelectionChanged;
@@ -75,6 +75,7 @@ namespace Cuboid.UnityPlugin.Editor
             OnProjectChanged += _controller.OnProjectChange;
             _controller.UpdateCollectionsList += UpdateCollectionsList;
             _controller.UpdateSelectedCollections += UpdateSelectedCollections;
+            _controller.UpdateThumbnail += UpdateThumbnail;
         }
 
         private void OnDisable()
@@ -83,6 +84,7 @@ namespace Cuboid.UnityPlugin.Editor
             OnProjectChanged -= _controller.OnProjectChange;
             _controller.UpdateCollectionsList -= UpdateCollectionsList;
             _controller.UpdateSelectedCollections -= UpdateSelectedCollections;
+            _controller.UpdateThumbnail -= UpdateThumbnail;
         }
 
         private void OnDestroy()
@@ -105,6 +107,16 @@ namespace Cuboid.UnityPlugin.Editor
             if (_collectionsList != null)
             {
                 _collectionsList.itemsSource = _controller.Collections;
+            }
+        }
+
+        private void UpdateThumbnail()
+        {
+            RealityAssetCollection collection = _controller.SelectedCollection;
+            _collectionsList.RefreshItem(_controller.Collections.IndexOf(collection));
+            if (_headerThumbnail != null)
+            {
+                _headerThumbnail.image = ThumbnailProvider.GetCollectionThumbnail(collection);
             }
         }
 
@@ -187,6 +199,7 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnRefreshButtonPressed()
         {
             ThumbnailProvider.EmptyCache();
+            OnProjectChange();
         }
 
         private void OnBuildButtonPressed()
@@ -218,8 +231,8 @@ namespace Cuboid.UnityPlugin.Editor
 
             if (image != null)
             {
-                Image thumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
-                titleWithThumbnail.Add(thumbnail);
+                _headerThumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
+                titleWithThumbnail.Add(_headerThumbnail);
             }
             titleWithThumbnail.Add(new Label(title));
 

@@ -22,6 +22,7 @@ namespace Cuboid.UnityPlugin.Editor
 
         public Action UpdateCollectionsList;
         public Action<List<RealityAssetCollection>> UpdateSelectedCollections;
+        public Action UpdateThumbnail;
 
         private List<RealityAssetCollection> _collections = null;
 
@@ -154,12 +155,16 @@ namespace Cuboid.UnityPlugin.Editor
 
             // first get all the RealityAssetCollections inside the selection
             List<RealityAssetCollection> newCollections = Utils.Filter<RealityAssetCollection>(objects);
-            SelectedCollections = newCollections;
+            if (newCollections.Count > 0)
+            {
+                SelectedCollections = newCollections;
+            }
 
             if (SelectedCollections.Count != 1 || SelectedCollections[0] == null) { return; }
 
             List<GameObject> newAssets = Utils.GetPrefabsInObjects(objects);
             SelectedAssets = newAssets;
+            Debug.Log("set selected assets");
         }
 
         private const string k_SelectedAssetsKey = "selected-assets";
@@ -201,6 +206,11 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnSelectedAssetsChanged()
         {
             if (_selectedAssets == null) { return; } // invalid, so don't try to store
+            // set the selection
+            // set the current selection
+            Object[] objects = SelectedAssets.ToArray<Object>();
+            Selection.objects = objects;
+
             EditorPrefs.SetString(SelectedAssetsKey, SelectedAssets.ToPaths().ToJson());
         }
 
@@ -240,13 +250,16 @@ namespace Cuboid.UnityPlugin.Editor
         public void OnAssetsListChanged()
         {
             AssetDatabase.SaveAssetIfDirty(SelectedCollection);
+            // update the thumbnail
+            UpdateThumbnail?.Invoke();
+
         }
 
         /// <summary>
         /// Gets the singularly selected collection, WARNING: throws errors if more or less
         /// collections are selected than 1, and if the selected collection is invalid (null or Assets is null). 
         /// </summary>
-        private RealityAssetCollection SelectedCollection
+        public RealityAssetCollection SelectedCollection
         {
             get
             {
