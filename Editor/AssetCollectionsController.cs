@@ -201,7 +201,6 @@ namespace Cuboid.UnityPlugin.Editor
         private void OnSelectedAssetsChanged()
         {
             if (_selectedAssets == null) { return; } // invalid, so don't try to store
-            Debug.Log(SelectedAssets.Count);
             EditorPrefs.SetString(SelectedAssetsKey, SelectedAssets.ToPaths().ToJson());
         }
 
@@ -299,6 +298,7 @@ namespace Cuboid.UnityPlugin.Editor
 
         private void OnThumbnailSizeChanged()
         {
+            UpdateSelectedCollections?.Invoke(SelectedCollections);
         }
 
         /// <summary>

@@ -67,32 +67,26 @@ namespace Cuboid.UnityPlugin.Editor
         private void Awake()
         {
             LoadStyleSheet();
-
-            OnSelectionChanged += _controller.OnSelectionChange;
-            OnProjectChanged += _controller.OnProjectChange;
-
-            // HACK: There is a bug in the ListView that makes it so that it doesn't render the items
-            // when changing between thumbnail sizes, so this will make sure it does.
-            // TODO: Once again, implement ListView ourselves.
-            _onDelayCall = () => { OnProjectChange(); };
-            EditorApplication.delayCall += _onDelayCall;
         }
 
         private void OnEnable()
         {
+            OnSelectionChanged += _controller.OnSelectionChange;
+            OnProjectChanged += _controller.OnProjectChange;
             _controller.UpdateCollectionsList += UpdateCollectionsList;
             _controller.UpdateSelectedCollections += UpdateSelectedCollections;
         }
 
         private void OnDisable()
         {
+            OnSelectionChanged -= _controller.OnSelectionChange;
+            OnProjectChanged -= _controller.OnProjectChange;
             _controller.UpdateCollectionsList -= UpdateCollectionsList;
             _controller.UpdateSelectedCollections -= UpdateSelectedCollections;
         }
 
         private void OnDestroy()
         {
-            EditorApplication.delayCall -= _onDelayCall;
         }
 
         private void LoadStyleSheet()
