@@ -237,7 +237,8 @@ namespace Cuboid.UnityPlugin.Editor
                 _headerThumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
                 titleWithThumbnail.Add(_headerThumbnail);
             }
-            titleWithThumbnail.Add(new Label(title));
+            _headerTitle = new Label(title);
+            titleWithThumbnail.Add(_headerTitle);
 
             // buttons
             VisualElement buttons = new VisualElement(); buttons.AddToClassList(k_CollectionButtons); header.Add(buttons);
@@ -322,7 +323,6 @@ namespace Cuboid.UnityPlugin.Editor
                     data.Subscript.text = asset != null ? AssetDatabase.GetAssetPath(asset) : null;
                     data.MiniThumbnail.image = asset != null ? AssetPreview.GetMiniThumbnail(asset) : null;
                     data.Subscript2.text = asset != null ? AssetDatabase.GetAssetPath(asset).EndsWith(".prefab") ? "Prefab" : "Imported Model" : null;
-
                 },
                 itemsSource = collection.Assets
             };
@@ -335,6 +335,7 @@ namespace Cuboid.UnityPlugin.Editor
 
         private List<RealityAssetCollection> _lastRendered = null;
         private ListView _assetsList = null;
+        private Label _headerTitle = null;
 
         /// <summary>
         /// Clears the view and renders the currently selected collection.
@@ -349,9 +350,11 @@ namespace Cuboid.UnityPlugin.Editor
 
             if (_assetsList != null && selectedCollections.Count == 1 && _lastRendered.Equals(selectedCollections))
             {
+                RealityAssetCollection collection = selectedCollections[0];
                 // update the list, instead of recreating it
-                _assetsList.itemsSource = selectedCollections[0].Assets;
+                _assetsList.itemsSource = collection.Assets;
                 _assetsList.RefreshItems();
+                if (_headerTitle != null) { _headerTitle.text = collection.name; }
                 return;
             }
 
