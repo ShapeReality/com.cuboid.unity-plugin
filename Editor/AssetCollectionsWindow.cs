@@ -14,13 +14,7 @@ namespace Cuboid.UnityPlugin.Editor
 {
     public class AssetCollectionsWindow : EditorWindow
     {
-        private enum ThumbnailSize
-        {
-            NotInitialized = 0,
-            Small = 64,
-            Medium = 128,
-            Large = 256
-        }
+        private AssetCollectionsController _controller = new AssetCollectionsController();
 
         private const string k_ShapeRealityUrl = "https://shapereality.io";
         private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
@@ -32,8 +26,15 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_DarkLogoPath = "Icons/cuboid_dark";
         private const string k_LightLogoPath = "Icons/cuboid_light";
 
+        private const string k_CollectionsToolbarLogo = "collections-toolbar-logo";
+        private const string k_CollectionsToolbar = "collections-toolbar";
         private const string k_CollectionsView = "collections-view";
         private const string k_CollectionView = "collection-view";
+
+        private const string k_CollectionHeader = "collection-header";
+        private const string k_TitleWithThumbnail = "title-with-thumbnail";
+        private const string k_CollectionButtons = "collection-buttons";
+
         private const string k_CollectionItem = "collection-item";
         private const string k_Asset = "asset";
         private const string k_Title = "title";
@@ -44,38 +45,432 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_AssetMetadataMiniThumbnail = "asset-metadata-mini-thumbnail";
         private const string k_AssetMetadataObjectType = "asset-metadata-object-type";
 
-        private const string k_SelectedCollectionKey = "selected-collection";
-        private const string k_SelectedAssetsKey = "selected-assets_";
-
-        private List<RealityAssetCollection> _collections = new();
-
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
-        private ListView _assetsList;
+        private Image _headerThumbnail;
         private EditorApplication.CallbackFunction _onDelayCall;
 
-        private const string k_ThumbnailSizeKey = "thumbnail-size";
-        private ThumbnailSize _currentThumbnailSize = ThumbnailSize.NotInitialized;
-        private ThumbnailSize CurrentThumbnailSize
+        private event Action OnSelectionChanged;
+        private event Action OnProjectChanged;
+        private event Action OnInspectorUpdated;
+
+        /// <summary>
+        /// Called when the <see cref="Selection.objects"/> changes
+        /// </summary>
+        private void OnSelectionChange() => OnSelectionChanged?.Invoke();
+
+        /// <summary>
+        /// Called whenever the project changes
+        /// </summary>
+        private void OnProjectChange() => OnProjectChanged?.Invoke();
+
+        private void Awake()
         {
-            get
+            LoadStyleSheet();
+        }
+
+        private void OnEnable()
+        {
+            OnSelectionChanged += _controller.OnSelectionChange;
+            OnProjectChanged += _controller.OnProjectChange;
+            OnInspectorUpdated += _controller.OnInspectorUpdate;
+            _controller.UpdateCollectionsList += UpdateCollectionsList;
+            _controller.UpdateSelectedCollections += UpdateSelectedCollections;
+            _controller.UpdateThumbnail += UpdateThumbnail;
+        }
+
+        private void OnDisable()
+        {
+            OnSelectionChanged -= _controller.OnSelectionChange;
+            OnProjectChanged -= _controller.OnProjectChange;
+            OnInspectorUpdated -= _controller.OnInspectorUpdate;
+            _controller.UpdateCollectionsList -= UpdateCollectionsList;
+            _controller.UpdateSelectedCollections -= UpdateSelectedCollections;
+            _controller.UpdateThumbnail -= UpdateThumbnail;
+        }
+
+        private void LoadStyleSheet()
+        {
+            _styleSheet = Resources.Load<StyleSheet>(k_StyleSheetPath);
+            if (_styleSheet == null)
             {
-                if (_currentThumbnailSize == ThumbnailSize.NotInitialized)
-                {
-                    _currentThumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Small);
-                }
-                return _currentThumbnailSize;
-            }
-            set
-            {
-                _currentThumbnailSize = value;
-                EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_currentThumbnailSize);
-                RenderSelectedCollectionUI();
+                Debug.LogWarning($"Could not find style sheet at {k_StyleSheetPath}");
             }
         }
 
-        private RealityAssetCollection _selectedCollection;
+        private void OnInspectorUpdate() => OnInspectorUpdated?.Invoke();
+
+        private void UpdateCollectionsList()
+        {
+            // important to update the itemsSource, not just RefreshItems,
+            // because it's not directly bound (because Collections is a property)
+            if (_collectionsList != null)
+            {
+                _collectionsList.itemsSource = _controller.Collections;
+            }
+        }
+
+        private void UpdateThumbnail()
+        {
+            RealityAssetCollection collection = _controller.SelectedCollection;
+            _collectionsList.RefreshItem(_controller.Collections.IndexOf(collection));
+            if (_headerThumbnail != null)
+            {
+                _headerThumbnail.image = ThumbnailProvider.GetCollectionThumbnail(collection);
+            }
+        }
+
+        private void CreateGUI()
+        {
+            // top bar
+            Toolbar toolbar = new Toolbar(); toolbar.AddToClassList(k_CollectionsToolbar); rootVisualElement.Add(toolbar);
+
+            // add menu
+            ToolbarMenu addMenu = new ToolbarMenu() { text = "Add" }; toolbar.Add(addMenu);
+            addMenu.menu.AppendAction("Create New Asset Collection", (_) => _controller.CreateNewAssetCollection());
+            DropdownMenuAction item = new DropdownMenuAction(
+                "Convert Selection to Asset Collection",
+                (_) => ConvertToCollection.ConvertSelectionToCollection(),
+                (_) => ConvertToCollection.ConvertSelectionToCollectionValidate() ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
+            addMenu.menu.MenuItems().Add(item);
+
+            // logo
+            Image logo = new Image() { image = GetLogo() }; logo.AddToClassList(k_CollectionsToolbarLogo); toolbar.Add(logo);
+
+            // help menu
+            ToolbarMenu helpMenu = new ToolbarMenu() { text = "Help" }; toolbar.Add(helpMenu);
+            helpMenu.menu.AppendAction("Cuboid Manual", (_) => Application.OpenURL(k_ManualUrl));
+            helpMenu.menu.AppendAction("License", (_) => Application.OpenURL(k_LicenseUrl));
+            helpMenu.menu.AppendAction("shapereality.io", (_) => Application.OpenURL(k_ShapeRealityUrl));
+
+            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
+            rootVisualElement.Add(splitView);
+            rootVisualElement.styleSheets.Add(_styleSheet);
+            
+            splitView.Add(RenderCollectionsList());
+            
+            _collectionView = new VisualElement();
+            splitView.Add(_collectionView);
+
+            rootVisualElement.AddManipulator(new DragAndDropManipulator(rootVisualElement, _controller.OnDragPerformed));
+        }
+
+        /// <summary>
+        /// Render collections UI. Returns the element so that it can be added
+        /// in the <see cref="CreateGUI"/> method. 
+        /// </summary> 
+        private VisualElement RenderCollectionsList()
+        {
+            VisualElement collectionsView = new VisualElement();
+            collectionsView.AddToClassList(k_CollectionsView);
+
+            _collectionsList = new ListView()
+            {
+                viewDataKey = "collections-list", // required for data persistence
+                fixedItemHeight = 30,
+                selectionType = SelectionType.Multiple,
+                makeItem = () =>
+                {
+                    VisualElement element = new VisualElement();
+                    element.AddToClassList(k_CollectionItem);
+                    element.Add(new Image()
+                    {
+                        scaleMode = ScaleMode.ScaleToFit
+                    });
+                    element.Add(new Label());
+                    return element;
+                },
+                bindItem = (item, index) =>
+                {
+                    Image image = item.Q<Image>();
+                    Label label = item.Q<Label>();
+
+                    RealityAssetCollection collection = (index >= 0 && index < _controller.Collections.Count) ?
+                        _controller.Collections[index] : null;
+
+                    image.image = collection != null ? ThumbnailProvider.GetCollectionThumbnail(collection) : ThumbnailProvider.EmptyTexture;
+                    label.text = collection != null ? collection.name : "";
+                },
+                itemsSource = _controller.Collections
+            };
+            _collectionsList.onSelectedIndicesChange += _controller.OnCollectionSelectedIndicesChange;
+            collectionsView.Add(_collectionsList);
+            return collectionsView;
+        }
+
+        private void OnRefreshButtonPressed()
+        {
+            ThumbnailProvider.EmptyCache();
+            OnProjectChange();
+        }
+
+        private void OnBuildButtonPressed()
+        {
+            BuildUtils.Build(_controller.SelectedCollections);
+        }
+
+        private void OnDuplicateButtonPressed()
+        {
+            Utils.Duplicate(_controller.SelectedCollections);
+        }
+
+        private void OnDeleteButtonPressed()
+        {
+            Utils.Delete(_controller.SelectedCollections);
+        }
+
+        private VisualElement RenderHeader(List<RealityAssetCollection> selectedCollections)
+        {
+            Toolbar header = new Toolbar(); header.AddToClassList(k_CollectionHeader);
+
+            // determine thumbnail and title
+            bool multiple = selectedCollections.Count > 1;
+            Texture2D image = multiple ? null : ThumbnailProvider.GetCollectionThumbnail(selectedCollections[0]);
+            string title = multiple ? "<Multiple>" : selectedCollections[0].name;
+
+            // title with thumbnail
+            VisualElement titleWithThumbnail = new VisualElement(); titleWithThumbnail.AddToClassList(k_TitleWithThumbnail); header.Add(titleWithThumbnail);
+
+            if (!multiple)
+            {
+                _headerThumbnail = new Image() { scaleMode = ScaleMode.ScaleToFit, image = image };
+                titleWithThumbnail.Add(_headerThumbnail);
+            }
+            _headerTitle = new Label(title);
+            titleWithThumbnail.Add(_headerTitle);
+
+            // buttons
+            VisualElement buttons = new VisualElement(); buttons.AddToClassList(k_CollectionButtons); header.Add(buttons);
+
+            // refresh button
+            Button refreshButton = new Button(OnRefreshButtonPressed); buttons.Add(refreshButton);
+            refreshButton.Add(new Image() { image = EditorGUIUtility.IconContent("Refresh").image });
+
+            // build button
+            buttons.Add(new Button(OnBuildButtonPressed) { text = "Build..." });
+
+            // more button
+            Button moreButton = new Button(() =>
+            {
+                GenericMenu moreMenu = new GenericMenu();
+                moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
+                void AddItem(ThumbnailSize size) => moreMenu.AddItem(new GUIContent(size.ToString()), _controller.ThumbnailSize == size, () => { _controller.ThumbnailSize = size; });
+                AddItem(ThumbnailSize.Microscopic);
+                AddItem(ThumbnailSize.Small);
+                AddItem(ThumbnailSize.Medium);
+                AddItem(ThumbnailSize.Large);
+                AddItem(ThumbnailSize.Gigantic);
+                moreMenu.AddSeparator("");
+                moreMenu.AddDisabledItem(new GUIContent(title));
+                moreMenu.AddItem(new GUIContent("Duplicate"), false, OnDuplicateButtonPressed);
+                moreMenu.AddItem(new GUIContent("Delete"), false, OnDeleteButtonPressed);
+                moreMenu.ShowAsContext();
+            });
+            moreButton.Add(new Image() { image = EditorGUIUtility.IconContent("_Menu").image }); buttons.Add(moreButton);
+
+            return header;
+        }
+
+        /// <summary>
+        /// Renders the selected collections in a list using the same items as
+        /// the <see cref="RenderAssetCollectionList"/>
+        /// </summary>
+        private ListView RenderSelectedCollectionsList(List<RealityAssetCollection> selectedCollections)
+        {
+            ListView selectedCollectionsList = new ListView()
+            {
+                selectionType = SelectionType.None,
+                fixedItemHeight = (int)_controller.ThumbnailSize,
+                showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
+                makeItem = RenderAssetCollectionListItem,
+                bindItem = (item, index) =>
+                {
+                    AssetCollectionListItemData data = new AssetCollectionListItemData(_controller, item);
+                    RealityAssetCollection collection = selectedCollections[index];
+                    data.Thumbnail.image = ThumbnailProvider.GetCollectionThumbnail(collection);
+                    data.Title.text = collection.name;
+                    data.Subscript.text = AssetDatabase.GetAssetPath(collection);
+                    data.MiniThumbnail.image = AssetPreview.GetMiniThumbnail(collection);
+                    data.Subscript2.text = nameof(RealityAssetCollection);
+                },
+                itemsSource = selectedCollections
+            };
+            return selectedCollectionsList;
+        }
+
+        private ListView RenderAssetCollectionList(RealityAssetCollection collection)
+        {
+            string name = string.Join('_', collection.name, "assetslist", _controller.ThumbnailSize.ToString());
+            ListView assetsList = new ListView()
+            {
+                name = name,
+                viewDataKey = name,
+                selectionType = SelectionType.Multiple,
+                headerTitle = nameof(RealityAssetCollection.Assets),
+                showFoldoutHeader = true,
+                showAddRemoveFooter = true,
+                showBoundCollectionSize = true,
+                showBorder = true,
+                reorderable = true,
+                reorderMode = ListViewReorderMode.Simple,
+                fixedItemHeight = (int)_controller.ThumbnailSize,
+                showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
+                makeItem = RenderAssetCollectionListItem,
+                bindItem = (item, index) =>
+                {
+                    AssetCollectionListItemData data = new AssetCollectionListItemData(_controller, item);
+                    GameObject asset = collection.Assets[index];
+                    data.Thumbnail.image = ThumbnailProvider.GetThumbnail(asset);
+                    data.Title.text = asset != null ? asset.name : "None (Game Object)";
+                    data.Subscript.text = asset != null ? AssetDatabase.GetAssetPath(asset) : null;
+                    data.MiniThumbnail.image = asset != null ? AssetPreview.GetMiniThumbnail(asset) : null;
+                    data.Subscript2.text = asset != null ? AssetDatabase.GetAssetPath(asset).EndsWith(".prefab") ? "Prefab" : "Imported Model" : null;
+                },
+                itemsSource = collection.Assets
+            };
+            assetsList.itemsAdded += (_) => _controller.OnAssetsListChanged();
+            assetsList.itemsRemoved += (_) => _controller.OnAssetsListChanged();
+            assetsList.itemIndexChanged += (_, _) => _controller.OnAssetsListChanged();
+            assetsList.onSelectedIndicesChange += _controller.OnAssetsSelectedIndicesChange;
+            return assetsList;
+        }
+
+        private List<RealityAssetCollection> _lastRendered = null;
+        private ThumbnailSize _lastThumbnailSize = ThumbnailSize.NotInitialized;
+        private ListView _assetsList = null;
+        private Label _headerTitle = null;
+
+        /// <summary>
+        /// Clears the view and renders the currently selected collection.
+        /// If no collection is selected, it will not render anything. 
+        /// </summary>
+        private void UpdateSelectedCollections(List<RealityAssetCollection> selectedCollections)
+        {
+            List<int> indices = _controller.GetSelectedIndices();
+            _collectionsList.SetSelectionWithoutNotify(indices);
+
+            if (_collectionView == null) { return; }
+
+            if (_assetsList != null && selectedCollections.Count == 1 &&
+                _lastThumbnailSize == _controller.ThumbnailSize && _lastRendered.Equals(selectedCollections))
+            {
+                RealityAssetCollection collection = selectedCollections[0];
+                // update the list, instead of recreating it
+                _assetsList.itemsSource = collection.Assets;
+                _assetsList.RefreshItems();
+                if (_headerTitle != null) { _headerTitle.text = collection.name; }
+                return;
+            }
+
+            _collectionView.Clear();
+
+            if (selectedCollections == null || selectedCollections.Count == 0)
+            {
+                _collectionView.Add(new Label("No Asset Collection Selected"));
+                return;
+            }
+
+            // header
+            _collectionView.Add(RenderHeader(selectedCollections));
+
+            // list
+            if (selectedCollections.Count == 1)
+            {
+                // renders the list of Assets that are inside the singular selected collection
+                _assetsList = RenderAssetCollectionList(selectedCollections[0]);
+                _collectionView.Add(_assetsList);
+
+                _lastRendered = selectedCollections;
+                _lastThumbnailSize = _controller.ThumbnailSize;
+
+                List<int> assetsIndices = _controller.GetSelectedAssetsIndices();
+                _assetsList.SetSelectionWithoutNotify(assetsIndices);
+            }
+            else
+            {
+                // renders multiple selected collections to preview for operations like Build, or Delete
+                _collectionView.Add(RenderSelectedCollectionsList(selectedCollections));
+            }
+        }
+
+        /// <summary>
+        /// Renders a singular item that is used by both
+        /// <see cref="RenderAssetCollectionList"/> and
+        /// <see cref="RenderSelectedCollectionsList"/>
+        /// </summary>
+        private VisualElement RenderAssetCollectionListItem()
+        {
+            VisualElement element = new VisualElement();
+            element.AddToClassList(k_Asset);
+            Image thumbnail = new Image()
+            {
+                scaleMode = ScaleMode.ScaleToFit
+            };
+            thumbnail.style.width = (int)_controller.ThumbnailSize;
+            element.Add(thumbnail);
+
+            VisualElement metadata = new VisualElement();
+            metadata.AddToClassList(k_AssetMetadata);
+            element.Add(metadata);
+            Label title = new Label();
+            title.AddToClassList(k_AssetMetadataTitle);
+            metadata.Add(title);
+
+            Label subscript = new Label();
+            subscript.AddToClassList(k_AssetMetadataSubscript);
+            metadata.Add(subscript);
+
+            VisualElement subscript2 = new VisualElement();
+            subscript2.AddToClassList(k_AssetMetadataSubscript2);
+            metadata.Add(subscript2);
+
+            Image miniThumbnail = new Image()
+            {
+                scaleMode = ScaleMode.ScaleToFit
+            };
+            miniThumbnail.AddToClassList(k_AssetMetadataMiniThumbnail);
+            subscript2.Add(miniThumbnail);
+            
+            Label objectType = new Label();
+            objectType.AddToClassList(k_AssetMetadataObjectType);
+            subscript2.Add(objectType);
+
+            return element;
+        }
+
+        /// <summary>
+        /// Performs queries, so that it can be used by both
+        /// <see cref="RenderAssetCollectionList"/> and
+        /// <see cref="RenderSelectedCollectionsList"/>
+        /// </summary>
+        private class AssetCollectionListItemData
+        {
+            public Image Thumbnail { get; private set; }
+            public Label Title { get; private set; }
+            public Label Subscript { get; private set; }
+            public Image MiniThumbnail { get; private set; }
+            public Label Subscript2 { get; private set; }
+
+            public AssetCollectionListItemData(AssetCollectionsController controller, VisualElement item)
+            {
+                Thumbnail = item.Q<Image>();
+                Title = item.Q<Label>(className: k_AssetMetadataTitle);
+                Subscript = item.Q<Label>(className: k_AssetMetadataSubscript);
+                MiniThumbnail = item.Q<Image>(className: k_AssetMetadataMiniThumbnail);
+                Subscript2 = item.Q<Label>(className: k_AssetMetadataObjectType);
+
+                // set visibility depending on the size of the visual element
+                bool showSubscript = controller.ThumbnailSize >= ThumbnailSize.Small;
+                Subscript.visible = showSubscript;
+
+                bool showSubscript2 = controller.ThumbnailSize >= ThumbnailSize.Medium;
+                MiniThumbnail.visible = showSubscript2;
+                Subscript2.visible = showSubscript2;
+            }
+        }
+
+        #region Editor Window
 
         [MenuItem("Cuboid/Asset Collections")]
         public static void ShowWindow()
@@ -106,448 +501,6 @@ namespace Cuboid.UnityPlugin.Editor
             editorWindow.titleContent = new GUIContent("Asset Collections", GetIcon());
         }
 
-        private void Awake()
-        {
-            LoadAssetCollectionsInProject();
-
-            // set selection collection based on stored name in EditorPrefs
-            string selectedCollectionName = EditorPrefs.GetString(k_SelectedCollectionKey);
-            _selectedCollection = _collections.Find((c) => c.name == selectedCollectionName);
-
-            LoadStyleSheet();
-
-            // HACK: There is a bug in the ListView that makes it so that it doesn't render the items
-            // when changing between thumbnail sizes, so this will make sure it does.
-            // TODO: Once again, implement ListView ourselves.
-            _onDelayCall = () => { OnProjectChange(); };
-            EditorApplication.delayCall += _onDelayCall;
-        }
-
-        private void OnDestroy()
-        {
-            EditorApplication.delayCall -= _onDelayCall;
-        }
-
-        private void LoadStyleSheet()
-        {
-            _styleSheet = Resources.Load<StyleSheet>(k_StyleSheetPath);
-            if (_styleSheet == null)
-            {
-                Debug.LogWarning($"Could not find style sheet at {k_StyleSheetPath}");
-            }
-        }
-
-        private bool _lastSelectedNullGameObject = false;
-
-        private void OnSelectionChange()
-        {
-            RealityAssetCollection selectedCollection = Selection.activeObject as RealityAssetCollection;
-            if (selectedCollection != null && !_lastSelectedNullGameObject)
-            {
-                // if the current active object is of type RealityAssetCollection, set the selection to it. 
-                _selectedCollection = selectedCollection;
-                UpdateCollectionsListSelectedIndex();
-            }
-            _lastSelectedNullGameObject = false;
-        }
-
-        // called when the user performs an action inside the Unity editor
-        private void OnProjectChange()
-        {
-            LoadAssetCollectionsInProject();
-            if (_collectionsList != null) { _collectionsList.RefreshItems(); }
-            UpdateCollectionsListSelectedIndex();
-            RenderSelectedCollectionUI();
-        }
-
-        private void UpdateCollectionsListSelectedIndex()
-        {
-            if (_selectedCollection != null &&
-                _collectionsList != null &&
-                _collections.Count > 0)
-            {
-                int index = _collections.IndexOf(_selectedCollection);
-                _collectionsList.selectedIndex = index != -1 ? index : 0;
-            }
-        }
-
-        private void OnCollectionSelectionChange(IEnumerable<object> selectedItems)
-        {
-            _selectedCollection = selectedItems.First() as RealityAssetCollection;
-            OnSelectedCollectionChanged();
-        }
-
-        private void OnSelectedCollectionChanged()
-        {
-            if (_selectedCollection != null)
-            {
-                Selection.activeObject = _selectedCollection;
-            }
-
-            EditorPrefs.SetString(k_SelectedCollectionKey, _selectedCollection != null ? _selectedCollection.name : "");
-            RenderSelectedCollectionUI();
-        }
-
-        private void CreateNewAssetCollection()
-        {
-            string fileName = RealityAssetCollection.DefaultFileName;
-            string directory;
-            if (_selectedCollection != null)
-            {
-                string path = AssetDatabase.GetAssetPath(_selectedCollection);
-                directory = Path.GetDirectoryName(path);
-            }
-            else
-            {
-                directory = "Assets/";
-            }
-            string targetPath = Path.Combine(directory, fileName + Constants.k_AssetExtension);
-            RealityAssetCollection collection = Utils.CreateAssetCollection(new List<GameObject>(), targetPath);
-            Selection.activeObject = collection;
-        }
-
-        private void DuplicateAssetCollection()
-        {
-            if (_selectedCollection != null)
-            {
-                string path = AssetDatabase.GetAssetPath(_selectedCollection);
-                string newPath = AssetDatabase.GenerateUniqueAssetPath(path);
-                bool success = AssetDatabase.CopyAsset(path, newPath);
-                if (!success)
-                {
-                    throw new Exception($"Failed to duplicate selected Asset Collection from {path} to {newPath}");
-                }
-                _selectedCollection = AssetDatabase.LoadAssetAtPath<RealityAssetCollection>(newPath);
-                OnSelectedCollectionChanged();
-            }
-        }
-
-        private void DeleteAssetCollection()
-        {
-            if (_selectedCollection != null)
-            {
-                string path = AssetDatabase.GetAssetPath(_selectedCollection);
-                AssetDatabase.DeleteAsset(path);
-                _selectedCollection = null;
-                AssetDatabase.Refresh();
-                OnProjectChange();
-            }
-        }
-
-        private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
-        {
-            Object[] selection = new Object[indices.Count()];
-
-            List<int> indicesList = new List<int>();
-            int i = 0;
-            foreach (int index in indices)
-            {
-                indicesList.Add(index);
-                selection[i++] = _selectedCollection.Assets[index];
-            }
-
-            if (selection.Length > 0 && selection[selection.Length - 1] != null)
-            {
-                // set the selection
-                Selection.objects = selection;
-            }
-            else
-            {
-                _lastSelectedNullGameObject = true; // a bit hacky, but makes sure the list view
-                // stays focused, instead of focusing the _selectedCollection. 
-                Selection.objects = new Object[] { _selectedCollection };
-            }
-
-            // store the selection
-            EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, indicesList.ToJson());
-        }
-
-        private void CreateGUI()
-        {
-            // top bar
-            Toolbar toolbar = new Toolbar() { name = "AssetCollectionsToolbar"};
-            rootVisualElement.Add(toolbar);
-
-            ToolbarMenu addMenu = new ToolbarMenu()
-            {
-                name = "AddMenu",
-                text = "Add"
-            };
-            addMenu.menu.AppendAction("Create New Asset Collection", (_) => { CreateNewAssetCollection(); });
-            toolbar.Add(addMenu);
-
-            toolbar.Add(new Image()
-            {
-                name = "ToolbarLogo",
-                image = GetLogo()
-            });
-
-            ToolbarMenu helpMenu = new ToolbarMenu()
-            {
-                text = "Help"
-            };
-            helpMenu.menu.AppendAction("Cuboid Manual", (_) => { Application.OpenURL(k_ManualUrl); });
-            helpMenu.menu.AppendAction("License", (_) => { Application.OpenURL(k_LicenseUrl); });
-            helpMenu.menu.AppendSeparator();
-            helpMenu.menu.AppendAction("shapereality.io", (_) => { Application.OpenURL(k_ShapeRealityUrl); });
-            toolbar.Add(helpMenu);
-
-            TwoPaneSplitView splitView = new TwoPaneSplitView(0, 250, TwoPaneSplitViewOrientation.Horizontal);
-            rootVisualElement.Add(splitView);
-            rootVisualElement.styleSheets.Add(_styleSheet);
-            
-            splitView.Add(RenderCollectionsUI());
-            
-            _collectionView = new VisualElement();
-            splitView.Add(_collectionView);
-            RenderSelectedCollectionUI();
-
-            UpdateCollectionsListSelectedIndex();
-
-            DragAndDropManipulator dragAndDropManipulator = new DragAndDropManipulator(rootVisualElement, (gameObjects) =>
-            {
-                if (_selectedCollection != null)
-                {
-                    _selectedCollection.Assets.AddRange(gameObjects);
-                    SaveSelectedCollection();
-                    if (_assetsList != null) { _assetsList.RefreshItems(); }
-                }
-            });
-        }
-
-        private void SaveSelectedCollection()
-        {
-            if (_selectedCollection != null)
-            {
-                EditorUtility.SetDirty(_selectedCollection);
-                AssetDatabase.SaveAssets();
-                // update the icon
-                _collectionsList.RefreshItem(_collections.IndexOf(_selectedCollection));
-                _collectionViewThumbnail.image = GetCollectionThumbnail(_selectedCollection);
-            }
-        }
-
-        /// <summary>
-        /// Render collections UI. Returns the element so that it can be added
-        /// in the <see cref="CreateGUI"/> method. 
-        /// </summary> 
-        private VisualElement RenderCollectionsUI()
-        {
-            VisualElement collectionsView = new VisualElement();
-            collectionsView.AddToClassList(k_CollectionsView);
-
-            _collectionsList = new ListView()
-            {
-                viewDataKey = "collections-list", // required for data persistence
-                fixedItemHeight = 30,
-                makeItem = () =>
-                {
-                    VisualElement element = new VisualElement();
-                    element.AddToClassList(k_CollectionItem);
-                    element.Add(new Image()
-                    {
-                        scaleMode = ScaleMode.ScaleToFit
-                    });
-                    element.Add(new Label());
-                    return element;
-                },
-                bindItem = (item, index) =>
-                {
-                    RealityAssetCollection collection = _collections[index];
-                    Image image = item.Q<Image>();
-                    image.image = GetCollectionThumbnail(collection);
-                    Label label = item.Q<Label>();
-                    label.text = collection.name;
-                },
-                itemsSource = _collections
-            };
-            _collectionsList.onSelectionChange += OnCollectionSelectionChange;
-            collectionsView.Add(_collectionsList);
-            return collectionsView;
-        }
-
-        private Image _collectionViewThumbnail;
-
-        /// <summary>
-        /// Clears the view and renders the currently selected collection.
-        /// If no collection is selected, it will not render anything. 
-        /// </summary>
-        private void RenderSelectedCollectionUI()
-        {
-            if (_collectionView == null)
-            {
-                return;
-            }
-            _collectionView.Clear();
-
-            if (_selectedCollection == null) { return; }
-
-            Toolbar header = new Toolbar() { name = "CollectionHeader" };
-            _collectionView.Add(header);
-
-            VisualElement titleWithThumbnail = new VisualElement() { name = "TitleWithThumbnail"};
-
-            _collectionViewThumbnail = new Image()
-            {
-                scaleMode = ScaleMode.ScaleToFit,
-                image = GetCollectionThumbnail(_selectedCollection)
-            };
-            titleWithThumbnail.Add(_collectionViewThumbnail);
-            titleWithThumbnail.Add(new Label(_selectedCollection.name)
-            {
-            });
-            header.Add(titleWithThumbnail);
-
-            VisualElement buttons = new VisualElement() { name = "CollectionButtons" };
-            header.Add(buttons);
-
-            Button refreshButton = new Button(() => { ThumbnailProvider.EmptyCache(); OnProjectChange(); });
-            refreshButton.Add(new Image()
-            {
-                image = EditorGUIUtility.IconContent("Refresh").image
-            });
-            buttons.Add(refreshButton);
-            buttons.Add(new Button(() =>
-            {
-                BuildUtils.Build(_selectedCollection);
-            })
-            {
-                text = "Build..."
-            });
-            Button moreButton = new Button(() =>
-            {
-                GenericMenu moreMenu = new GenericMenu();
-                
-                moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
-                moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
-                moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
-                moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
-                moreMenu.AddSeparator("");
-                moreMenu.AddItem(new GUIContent("Duplicate"), false, () => DuplicateAssetCollection());
-                moreMenu.AddSeparator("");
-                moreMenu.AddItem(new GUIContent("Delete"), false, () => DeleteAssetCollection());
-
-                moreMenu.ShowAsContext();
-            });
-            moreButton.Add(new Image()
-            {
-                image = EditorGUIUtility.IconContent("_Menu").image
-            });
-            buttons.Add(moreButton);
-
-            string name = _selectedCollection.name + "_assetsList_" + CurrentThumbnailSize.ToString();
-            _assetsList = new ListView()
-            {
-                name = name,
-                viewDataKey = name,
-                selectionType = SelectionType.Multiple,
-                headerTitle = "Assets",
-                showFoldoutHeader = true,
-                showAddRemoveFooter = true,
-                showBoundCollectionSize = true,
-                showBorder = true,
-                reorderable = true,
-                reorderMode = ListViewReorderMode.Simple, // animated doesn't support reording multiple items at once
-                fixedItemHeight = (int)CurrentThumbnailSize,
-                showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
-                makeItem = () =>
-                {
-                    VisualElement element = new VisualElement();
-                    element.AddToClassList(k_Asset);
-                    Image thumbnail = new Image()
-                    {
-                        scaleMode = ScaleMode.ScaleToFit
-                    };
-                    thumbnail.style.width = (int)CurrentThumbnailSize;
-                    element.Add(thumbnail);
-
-                    VisualElement metadata = new VisualElement();
-                    metadata.AddToClassList(k_AssetMetadata);
-                    element.Add(metadata);
-                    Label title = new Label();
-                    title.AddToClassList(k_AssetMetadataTitle);
-                    metadata.Add(title);
-
-                    Label subscript = new Label();
-                    subscript.AddToClassList(k_AssetMetadataSubscript);
-                    metadata.Add(subscript);
-
-                    VisualElement subscript2 = new VisualElement();
-                    subscript2.AddToClassList(k_AssetMetadataSubscript2);
-                    metadata.Add(subscript2);
-
-                    Image miniThumbnail = new Image()
-                    {
-                        scaleMode = ScaleMode.ScaleToFit
-                    };
-                    miniThumbnail.AddToClassList(k_AssetMetadataMiniThumbnail);
-                    subscript2.Add(miniThumbnail);
-
-                    Label objectType = new Label();
-                    objectType.AddToClassList(k_AssetMetadataObjectType);
-                    subscript2.Add(objectType);
-
-                    return element;
-                },
-                bindItem = (item, index) =>
-                {
-                    GameObject asset = _selectedCollection.Assets[index];
-                    Image image = item.Q<Image>();
-                    image.image = ThumbnailProvider.GetThumbnail(asset);
-                    Label metadataTitle = item.Q<Label>(className: k_AssetMetadataTitle);
-                    metadataTitle.text = asset != null ? asset.name : "None (Game Object)";
-
-                    Label metadataSubscript = item.Q<Label>(className: k_AssetMetadataSubscript);
-                    metadataSubscript.text = asset != null ? AssetDatabase.GetAssetPath(asset) : "";
-
-                    Image metadataMiniThumbnail = item.Q<Image>(className: k_AssetMetadataMiniThumbnail);
-                    metadataMiniThumbnail.image = asset != null ? AssetPreview.GetMiniThumbnail(asset) : null;
-
-                    Label metadataObjectType = item.Q<Label>(className: k_AssetMetadataObjectType);
-                    
-                    
-                    metadataObjectType.text = asset != null ? AssetDatabase.GetAssetPath(asset).EndsWith(".prefab") ? "Prefab" : "Imported Model" : null;
-                },
-                itemsSource = _selectedCollection.Assets
-            };
-            _assetsList.itemsAdded += (_) => { SaveSelectedCollection(); };
-            _assetsList.itemsRemoved += (_) => { SaveSelectedCollection(); };
-            _assetsList.itemIndexChanged += (_, _) => { SaveSelectedCollection(); };
-            _collectionView.Add(_assetsList);
-
-            // Sets the selected index
-            string json = EditorPrefs.GetString(k_SelectedAssetsKey + _selectedCollection.name, "");
-            if (json != "")
-            {
-                List<int> indices = json.ToIntList();
-                _assetsList.SetSelection(indices);
-            }
-
-            _assetsList.onSelectedIndicesChange += OnAssetsSelectedIndicesChange;
-        }
-
-        /// <summary>
-        /// Loads all asset collections of type <see cref="RealityAssetCollection"/>
-        /// that exist in the Assets folder. 
-        /// </summary>
-        private void LoadAssetCollectionsInProject()
-        {
-            string[] guids = AssetDatabase.FindAssets("t:RealityAssetCollection");
-
-            _collections.Clear();
-
-            foreach (string guid in guids)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                RealityAssetCollection asset = AssetDatabase.LoadAssetAtPath<RealityAssetCollection>(path);
-
-                _collections.Add(asset);
-            }
-        }
-
-        private Texture GetCollectionThumbnail(RealityAssetCollection collection)
-        {
-            return ThumbnailProvider.GetThumbnail(collection.Assets.Count > 0 ? collection.Assets[0] : null);
-        }
+        #endregion
     }
 }
