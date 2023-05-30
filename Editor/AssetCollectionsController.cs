@@ -6,6 +6,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using UnityEngine.UIElements;
+using UnityEditor.UIElements;
 
 namespace Cuboid.UnityPlugin.Editor
 {
@@ -43,22 +45,9 @@ namespace Cuboid.UnityPlugin.Editor
             }
         }
 
-        public List<int> GetSelectedIndices()
-        {
-            List<int> indices = new List<int>();
-
-            foreach (RealityAssetCollection collection in SelectedCollections)
-            {
-                int index = _collections.IndexOf(collection);
-                if (index != -1) { indices.Add(index); }
-            }
-
-            return indices;
-        }
-
         private void OnCollectionsChanged()
         {
-            
+
         }
 
         private void ReloadCollections()
@@ -115,8 +104,26 @@ namespace Cuboid.UnityPlugin.Editor
             Object[] objects = SelectedCollections.ToArray<Object>();
             Selection.objects = objects;
 
+            SelectedAssets = null;
+
             // make sure the asset collection view gets rerendered
             UpdateSelectedCollections?.Invoke(SelectedCollections);
+        }
+
+        /// <summary>
+        /// Get the indices of the currently selected collection. 
+        /// </summary>
+        public List<int> GetSelectedIndices()
+        {
+            List<int> indices = new List<int>();
+
+            foreach (RealityAssetCollection collection in SelectedCollections)
+            {
+                int index = _collections.IndexOf(collection);
+                if (index != -1) { indices.Add(index); }
+            }
+
+            return indices;
         }
 
         /// <summary>
@@ -151,12 +158,113 @@ namespace Cuboid.UnityPlugin.Editor
 
             if (SelectedCollections.Count != 1 || SelectedCollections[0] == null) { return; }
 
-            //List<GameObject> newPrefabs = Utils.GetPrefabsInObjects(objects);
+            List<GameObject> newAssets = Utils.GetPrefabsInObjects(objects);
+            SelectedAssets = newAssets;
+        }
 
-            //if (!newPrefabs.ContainsSameItemsAs(SelectedCollections[0].Assets))
-            //{
+        private string k_SelectedAssetsKey = "selected-assets";
+        private string SelectedAssetsKey
+        {
+            get
+            {
+                RealityAssetCollection collection = SelectedCollection;
+                return string.Join('_', k_SelectedCollectionsKey, collection.name);
+            }
+        }
 
-            //}
+        private List<GameObject> _selectedAssets = null;
+
+        /// <summary>
+        /// The currently selected assets in the currently selected collection
+        /// (only if one is selected, otherwise the list is empty)
+        /// </summary>
+        public List<GameObject> SelectedAssets
+        {
+            get
+            {
+                if (_selectedAssets == null)
+                {
+                    _selectedAssets = new List<GameObject>();
+                    string json = EditorPrefs.GetString(SelectedAssetsKey);
+                    if (json != "") { _selectedAssets = json.FromJson<string>().FromPaths<GameObject>(); }
+                }
+                return _selectedAssets;
+            }
+            set
+            {
+                if (_selectedAssets.ContainsSameItemsAs(value)) { return; }
+                _selectedAssets = value;
+                OnSelectedAssetsChanged();
+            }
+        }
+
+        private void OnSelectedAssetsChanged()
+        {
+            if (_selectedAssets == null) { return; } // invalid, so don't try to store
+            Debug.Log(SelectedAssets.Count);
+            EditorPrefs.SetString(SelectedAssetsKey, SelectedAssets.ToPaths().ToJson());
+        }
+
+        /// <summary>
+        /// Gets called when the selected assets change in the list view.
+        /// </summary>
+        public void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
+        {
+            RealityAssetCollection collection = SelectedCollection;
+            List<GameObject> objects = new List<GameObject>();
+            foreach (int index in indices)
+            {
+                objects.Add(collection.Assets[index]);
+            }
+            SelectedAssets = objects;
+        }
+
+        /// <summary>
+        /// Get the indices of the currently selected collection. 
+        /// </summary>
+        public List<int> GetSelectedAssetsIndices()
+        {
+            RealityAssetCollection collection = SelectedCollection;
+            List<int> indices = new List<int>();
+            foreach (GameObject asset in SelectedAssets)
+            {
+                int index = collection.Assets.IndexOf(asset);
+                if (index != -1) { indices.Add(index); }
+            }
+            return indices;
+        }
+
+        /// <summary>
+        /// Called on <see cref="ListView.itemsAdded"/>, <see cref="ListView.itemsRemoved"/>
+        /// and <see cref="ListView.itemIndexChanged"/>. Will save the collection to disk
+        /// </summary>
+        public void OnAssetsListChanged()
+        {
+            AssetDatabase.SaveAssetIfDirty(SelectedCollection);
+        }
+
+        /// <summary>
+        /// Gets the singularly selected collection, WARNING: throws errors if more or less
+        /// collections are selected than 1, and if the selected collection is invalid (null or Assets is null). 
+        /// </summary>
+        private RealityAssetCollection SelectedCollection
+        {
+            get
+            {
+                if (SelectedCollections == null)
+                {
+                    throw new Exception($"{nameof(SelectedCollections)} is null");
+                }
+                else if (SelectedCollections.Count != 1)
+                {
+                    throw new Exception($"{nameof(SelectedCollections.Count)} is not 1, do not call this method.");
+                }
+                else if (SelectedCollections[0] == null || SelectedCollections[0].Assets == null)
+                {
+                    throw new Exception($"Selected Asset Collection is not valid");
+                }
+                return SelectedCollections[0];
+            }
         }
 
         /// <summary>
@@ -166,6 +274,31 @@ namespace Cuboid.UnityPlugin.Editor
         {
             Collections = GetCollectionsInProject();
             UpdateCollectionsList?.Invoke();
+        }
+
+        private const string k_ThumbnailSizeKey = "thumbnail-size";
+        private ThumbnailSize _thumbnailSize = ThumbnailSize.NotInitialized;
+        public ThumbnailSize ThumbnailSize
+        {
+            get
+            {
+                if (_thumbnailSize == ThumbnailSize.NotInitialized)
+                {
+                    _thumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Small);
+                }
+                return _thumbnailSize;
+            }
+            set
+            {
+                if (_thumbnailSize == value) { return; }
+                _thumbnailSize = value;
+                EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_thumbnailSize);
+                OnThumbnailSizeChanged();
+            }
+        }
+
+        private void OnThumbnailSizeChanged()
+        {
         }
 
         /// <summary>

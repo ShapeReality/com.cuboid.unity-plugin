@@ -16,14 +16,6 @@ namespace Cuboid.UnityPlugin.Editor
     {
         private AssetCollectionsController _controller = new AssetCollectionsController();
 
-        private enum ThumbnailSize
-        {
-            NotInitialized = 0,
-            Small = 64,
-            Medium = 128,
-            Large = 256
-        }
-
         private const string k_ShapeRealityUrl = "https://shapereality.io";
         private const string k_LicenseUrl = "https://cuboid.readthedocs.io/en/latest/about/license";
         private const string k_ManualUrl = "https://cuboid.readthedocs.io";
@@ -53,38 +45,11 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_AssetMetadataMiniThumbnail = "asset-metadata-mini-thumbnail";
         private const string k_AssetMetadataObjectType = "asset-metadata-object-type";
 
-        private const string k_SelectedAssetsKey = "selected-assets_";
-
         private StyleSheet _styleSheet;
         private VisualElement _collectionView;
         private ListView _collectionsList;
         private Image _collectionViewThumbnail;
         private EditorApplication.CallbackFunction _onDelayCall;
-
-        private const string k_ThumbnailSizeKey = "thumbnail-size";
-        private ThumbnailSize _currentThumbnailSize = ThumbnailSize.NotInitialized;
-        private ThumbnailSize CurrentThumbnailSize
-        {
-            get
-            {
-                if (_currentThumbnailSize == ThumbnailSize.NotInitialized)
-                {
-                    _currentThumbnailSize = (ThumbnailSize)EditorPrefs.GetInt(k_ThumbnailSizeKey, (int)ThumbnailSize.Small);
-                }
-                return _currentThumbnailSize;
-            }
-            set
-            {
-                _currentThumbnailSize = value;
-                EditorPrefs.SetInt(k_ThumbnailSizeKey, (int)_currentThumbnailSize);
-                OnThumbnailSizeChanged();
-            }
-        }
-
-        private void OnThumbnailSizeChanged()
-        {
-
-        }
 
         /// <summary>
         /// Called when the <see cref="Selection.objects"/> changes
@@ -95,34 +60,6 @@ namespace Cuboid.UnityPlugin.Editor
         /// Called whenever the project changes
         /// </summary>
         private void OnProjectChange() => _controller.OnProjectChange();
-
-        private void OnAssetsSelectedIndicesChange(IEnumerable<int> indices)
-        {
-            //Object[] selection = new Object[indices.Count()];
-
-            //List<int> indicesList = new List<int>();
-            //int i = 0;
-            //foreach (int index in indices)
-            //{
-            //    indicesList.Add(index);
-            //    selection[i++] = _selectedCollection.Assets[index];
-            //}
-
-            //if (selection.Length > 0 && selection[selection.Length - 1] != null)
-            //{
-            //    // set the selection
-            //    Selection.objects = selection;
-            //}
-            //else
-            //{
-            //    _lastSelectedNullGameObject = true; // a bit hacky, but makes sure the list view
-            //    // stays focused, instead of focusing the _selectedCollection. 
-            //    Selection.objects = new Object[] { _selectedCollection };
-            //}
-
-            //// store the selection
-            //EditorPrefs.SetString(k_SelectedAssetsKey + _selectedCollection.name, indicesList.ToJson());
-        }
 
         private void Awake()
         {
@@ -179,7 +116,10 @@ namespace Cuboid.UnityPlugin.Editor
             // add menu
             ToolbarMenu addMenu = new ToolbarMenu() { text = "Add" }; toolbar.Add(addMenu);
             addMenu.menu.AppendAction("Create New Asset Collection", (_) => _controller.CreateNewAssetCollection());
-            addMenu.menu.AppendAction("Convert Selection to Asset Collection", (_) => { });
+            addMenu.menu.AppendAction(
+                "Convert Selection to Asset Collection",
+                (_) => FolderToCollection.ConvertSelectionToCollection(),
+                FolderToCollection.ConvertSelectionToCollectionValidate() ? DropdownMenuAction.Status.Normal : DropdownMenuAction.Status.Disabled);
 
             // logo
             Image logo = new Image() { image = GetLogo() }; logo.AddToClassList(k_CollectionsToolbarLogo); toolbar.Add(logo);
@@ -297,9 +237,9 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 GenericMenu moreMenu = new GenericMenu();
                 moreMenu.AddDisabledItem(new GUIContent("Thumbnail Size"));
-                moreMenu.AddItem(new GUIContent("Small"), CurrentThumbnailSize == ThumbnailSize.Small, () => { CurrentThumbnailSize = ThumbnailSize.Small; });
-                moreMenu.AddItem(new GUIContent("Medium"), CurrentThumbnailSize == ThumbnailSize.Medium, () => { CurrentThumbnailSize = ThumbnailSize.Medium; });
-                moreMenu.AddItem(new GUIContent("Large"), CurrentThumbnailSize == ThumbnailSize.Large, () => { CurrentThumbnailSize = ThumbnailSize.Large; });
+                moreMenu.AddItem(new GUIContent("Small"), _controller.ThumbnailSize == ThumbnailSize.Small, () => { _controller.ThumbnailSize = ThumbnailSize.Small; });
+                moreMenu.AddItem(new GUIContent("Medium"), _controller.ThumbnailSize == ThumbnailSize.Medium, () => { _controller.ThumbnailSize = ThumbnailSize.Medium; });
+                moreMenu.AddItem(new GUIContent("Large"), _controller.ThumbnailSize == ThumbnailSize.Large, () => { _controller.ThumbnailSize = ThumbnailSize.Large; });
                 moreMenu.AddSeparator("");
                 moreMenu.AddItem(new GUIContent("Duplicate"), false, OnDuplicateButtonPressed);
                 moreMenu.AddSeparator("");
@@ -315,12 +255,12 @@ namespace Cuboid.UnityPlugin.Editor
         /// Renders the selected collections in a list using the same items as
         /// the <see cref="RenderAssetCollectionList"/>
         /// </summary>
-        private VisualElement RenderSelectedCollectionsList(List<RealityAssetCollection> selectedCollections)
+        private ListView RenderSelectedCollectionsList(List<RealityAssetCollection> selectedCollections)
         {
             ListView selectedCollectionsList = new ListView()
             {
                 selectionType = SelectionType.None,
-                fixedItemHeight = (int)CurrentThumbnailSize,
+                fixedItemHeight = (int)_controller.ThumbnailSize,
                 showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = RenderAssetCollectionListItem,
                 bindItem = (item, index) =>
@@ -337,9 +277,9 @@ namespace Cuboid.UnityPlugin.Editor
             return selectedCollectionsList;
         }
 
-        private VisualElement RenderAssetCollectionList(RealityAssetCollection collection)
+        private ListView RenderAssetCollectionList(RealityAssetCollection collection)
         {
-            string name = string.Join('_', collection.name, "assetslist", CurrentThumbnailSize.ToString());
+            string name = string.Join('_', collection.name, "assetslist", _controller.ThumbnailSize.ToString());
             ListView assetsList = new ListView()
             {
                 name = name,
@@ -352,7 +292,7 @@ namespace Cuboid.UnityPlugin.Editor
                 showBorder = true,
                 reorderable = true,
                 reorderMode = ListViewReorderMode.Simple,
-                fixedItemHeight = (int)CurrentThumbnailSize,
+                fixedItemHeight = (int)_controller.ThumbnailSize,
                 showAlternatingRowBackgrounds = AlternatingRowBackground.ContentOnly,
                 makeItem = RenderAssetCollectionListItem,
                 bindItem = (item, index) =>
@@ -368,21 +308,11 @@ namespace Cuboid.UnityPlugin.Editor
                 },
                 itemsSource = collection.Assets
             };
+            assetsList.itemsAdded += (_) => _controller.OnAssetsListChanged();
+            assetsList.itemsRemoved += (_) => _controller.OnAssetsListChanged();
+            assetsList.itemIndexChanged += (_, _) => _controller.OnAssetsListChanged();
+            assetsList.onSelectedIndicesChange += _controller.OnAssetsSelectedIndicesChange;
             return assetsList;
-            //_assetsList.itemsAdded += (_) => { SaveSelectedCollection(); };
-            //_assetsList.itemsRemoved += (_) => { SaveSelectedCollection(); };
-            //_assetsList.itemIndexChanged += (_, _) => { SaveSelectedCollection(); };
-            //_collectionView.Add(_assetsList);
-
-            //// Sets the selected index
-            //string json = EditorPrefs.GetString(k_SelectedAssetsKey + _selectedCollection.name, "");
-            //if (json != "")
-            //{
-            //    List<int> indices = json.ToIntList();
-            //    _assetsList.SetSelection(indices);
-            //}
-
-            //_assetsList.onSelectedIndicesChange += OnAssetsSelectedIndicesChange;
         }
 
         /// <summary>
@@ -410,7 +340,11 @@ namespace Cuboid.UnityPlugin.Editor
             if (selectedCollections.Count == 1)
             {
                 // renders the list of Assets that are inside the singular selected collection
-                _collectionView.Add(RenderAssetCollectionList(selectedCollections[0]));
+                ListView assetsList = RenderAssetCollectionList(selectedCollections[0]);
+                _collectionView.Add(assetsList);
+
+                List<int> assetsIndices = _controller.GetSelectedAssetsIndices();
+                assetsList.SetSelectionWithoutNotify(assetsIndices);
             }
             else
             {
@@ -432,7 +366,7 @@ namespace Cuboid.UnityPlugin.Editor
             {
                 scaleMode = ScaleMode.ScaleToFit
             };
-            thumbnail.style.width = (int)CurrentThumbnailSize;
+            thumbnail.style.width = (int)_controller.ThumbnailSize;
             element.Add(thumbnail);
 
             VisualElement metadata = new VisualElement();

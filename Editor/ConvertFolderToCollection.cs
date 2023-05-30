@@ -42,10 +42,6 @@ namespace Cuboid.UnityPlugin.Editor
         [MenuItem(k_MenuItemName, validate = true)]
         public static bool ConvertSelectionToCollectionValidate()
         {
-            // can convert folders or separate GameObjects, but not mixed.
-            // because folders will be done using batching (each folder getting their own
-            // asset collection), and GameObjects will be combined. 
-
             Object[] selection = Selection.objects;
 
             if (selection.Length == 0) { return false; }
