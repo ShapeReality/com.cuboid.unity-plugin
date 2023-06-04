@@ -154,6 +154,7 @@ namespace Cuboid.UnityPlugin.Editor
             // the sprite atlas entry will also be in the AddressableNames list
             SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
             {
+                Name = collection.name,
                 AddressableNames = assetBundleBuild.addressableNames.ToList(),
                 Author = collection.Author,
                 CreationDate = DateTime.Now

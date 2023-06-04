@@ -22,6 +22,8 @@ namespace Cuboid.UnityPlugin
     [System.Serializable]
     public class SerializedRealityAssetCollection
     {
+        public string Name;
+
         public string Author;
 
         public DateTime CreationDate;
