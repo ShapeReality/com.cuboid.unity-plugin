@@ -20,5 +20,7 @@ namespace Cuboid.UnityPlugin
         public const string k_AssetCollectionAssetBundleName = "bundle";
 
         public const string k_AssetCollectionSpriteAtlasName = "thumbnails.spriteatlas";
+
+        public const char k_IdentifierSeparator = '-';
     }
 }

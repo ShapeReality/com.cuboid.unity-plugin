@@ -148,7 +148,7 @@ namespace Cuboid.UnityPlugin.Editor
                     _internalCamera = camera;
                     _internalCamera.nearClipPlane = 0.01f;
                     _internalCamera.cullingMask = 1 << k_PreviewLayerIndex;
-                    //_internalCamera.gameObject.hideFlags = HideFlags.HideAndDontSave;
+                    _internalCamera.gameObject.hideFlags = HideFlags.HideAndDontSave;
                 }
 
                 return _internalCamera;
