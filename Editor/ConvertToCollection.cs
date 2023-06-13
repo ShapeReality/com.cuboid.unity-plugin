@@ -11,7 +11,7 @@ namespace Cuboid.UnityPlugin.Editor
 {
     public static class ConvertToCollection
     {
-        private const string k_MenuItemName = "Assets/Convert to Asset Collection";
+        private const string k_MenuItemName = "Assets/Cuboid/Convert to Asset Collection";
 
         /// <summary>
         /// Naive implementation (we shouldn't have to load the GameObjects into memory,
@@ -46,7 +46,7 @@ namespace Cuboid.UnityPlugin.Editor
 
             if (selection.Length == 0) { return false; }
 
-            bool valid = false; // selection contains
+            bool valid = false;
 
             for (int i = 0; i < selection.Length; i++)
             {
