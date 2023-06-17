@@ -21,6 +21,8 @@ namespace Cuboid.UnityPlugin.Editor
         private const string k_TemporaryThumbnailSpritesDirectory = "__cuboid_temp";
         private const string k_SpriteAtlasFileName = "__spriteatlas.spriteatlas";
 
+        private const char k_DirectorySeparatorReplacement = '_';
+
         // Stores the last selected directory path in EditorPrefs so that it persists between editor reloads. 
         private const string k_LastSelectedDirectoryPathKey = "BuildUtils_lastSelectedDirectoryPath";
         private static string _lastSelectedDirectoryPath = null;
@@ -174,6 +176,7 @@ namespace Cuboid.UnityPlugin.Editor
                 enableRotation = false,
                 enableTightPacking = false
             });
+            //spriteAtlas.SetIncludeInBuild(false);
             string spriteAtlasPath = Path.Combine(thumbnailsFolder, k_SpriteAtlasFileName);
             AssetDatabase.CreateAsset(spriteAtlas, spriteAtlasPath);
 
@@ -190,7 +193,7 @@ namespace Cuboid.UnityPlugin.Editor
                 byte[] encodedTexture = AssetToThumbnailPNG(asset);
 
                 string thumbnailName = assetBundleBuild.addressableNames[i];
-                thumbnailName = thumbnailName.Replace(Path.DirectorySeparatorChar, '_');
+                thumbnailName = thumbnailName.Replace(Path.DirectorySeparatorChar, k_DirectorySeparatorReplacement);
                 string thumbnailPath = Path.Combine(thumbnailsFolder, thumbnailName + ".png");
                 File.WriteAllBytes(thumbnailPath, encodedTexture);
 
@@ -206,7 +209,6 @@ namespace Cuboid.UnityPlugin.Editor
                 Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(thumbnailPath);
                 sprites[i] = sprite;
             }
-
             spriteAtlas.Add(sprites);
             AssetDatabase.SaveAssets();
 
@@ -217,9 +219,9 @@ namespace Cuboid.UnityPlugin.Editor
             string assetBundlePath = Path.Combine(tempPath, Constants.k_AssetCollectionAssetBundleName);
             Directory.CreateDirectory(assetBundlePath);
 
-            BuildAssetBundleOptions options = BuildAssetBundleOptions.None;
+            BuildAssetBundleOptions options = BuildAssetBundleOptions.StrictMode;
             BuildTarget buildTarget = BuildTarget.Android;
-            BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild },options, buildTarget);
+            BuildPipeline.BuildAssetBundles(assetBundlePath, new AssetBundleBuild[] { assetBundleBuild }, options, buildTarget);
 
             // Put the contents of the files at the jsonPath and the assetBundlePath into a zip file
             ZipFile.CreateFromDirectory(tempPath, targetPath);
@@ -352,6 +354,7 @@ namespace Cuboid.UnityPlugin.Editor
                     path = path.Substring(commonPrefix.Length);
                     path = path.TrimStart(Path.DirectorySeparatorChar);
                     path = path.Substring(0, path.LastIndexOf('.'));
+                    path = path.Replace(Path.DirectorySeparatorChar, k_DirectorySeparatorReplacement);
 
                     addressableNames[collisionIndex] = path;
                 }
