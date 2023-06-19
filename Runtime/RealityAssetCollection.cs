@@ -29,5 +29,10 @@ namespace Cuboid.UnityPlugin
         public DateTime CreationDate;
 
         public List<string> AddressableNames = new List<string>();
+
+        /// <summary>
+        /// Identifier, composed of the name and author, in lower case
+        /// </summary>
+        public string Identifier => string.Join('-', Author, Name).ToLower();
     }
 }

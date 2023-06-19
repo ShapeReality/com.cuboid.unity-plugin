@@ -144,23 +144,24 @@ namespace Cuboid.UnityPlugin.Editor
             // Filter any duplicate or null objects out of the assets
             List<GameObject> assets = FilterAssets(collection.Assets);
 
+            SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
+            {
+                Name = collection.name,
+                Author = collection.Author,
+                CreationDate = DateTime.Now
+            };
+
             // Create asset bundle build that contains asset names and addressable names,
             // these can then be used to name the thumbnails. 
-            AssetBundleBuild assetBundleBuild = GetAssetBundleBuild(assets, collection.name);
+            AssetBundleBuild assetBundleBuild = GetAssetBundleBuild(assets, serializedCollection.Identifier);
 
             // Get temp path
             string tempPath = FileUtil.GetUniqueTempPathInProject();
             Directory.CreateDirectory(tempPath);
 
-            // Create serialized collection, should be done before adding the SpriteAtlas, otherwise
+            // Set serialized collection's addressable names, should be done before adding the SpriteAtlas, otherwise
             // the sprite atlas entry will also be in the AddressableNames list
-            SerializedRealityAssetCollection serializedCollection = new SerializedRealityAssetCollection()
-            {
-                Name = collection.name,
-                AddressableNames = assetBundleBuild.addressableNames.ToList(),
-                Author = collection.Author,
-                CreationDate = DateTime.Now
-            };
+            serializedCollection.AddressableNames = assetBundleBuild.addressableNames.ToList();
 
             string json = JsonConvert.SerializeObject(serializedCollection, Formatting.Indented, SerializationSettings.RealityAssetCollectionJsonSerializationSettings);
             string jsonPath = Path.Combine(tempPath, Constants.k_AssetCollectionEntryName);
