@@ -14,6 +14,7 @@
   "changelogUrl": "https://cuboid.readthedocs.io/en/latest/about/changelog/",
   "licensesUrl": "https://cuboid.readthedocs.io/en/latest/about/license/",
   "dependencies": {
-    "com.unity.render-pipelines.universal": "12.1.0"
+    "com.unity.render-pipelines.universal": "12.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   }
 }

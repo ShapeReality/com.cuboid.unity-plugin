@@ -7,7 +7,7 @@ namespace Cuboid.UnityPlugin.Editor
 {
     public static class Package
     {
-        private const string k_PackagePath = "Packages/com.cuboid.unity-plugin";
+        public const string k_PackagePath = "Packages/com.cuboid.unity-plugin";
 
         public static string GetPath(string path)
         {

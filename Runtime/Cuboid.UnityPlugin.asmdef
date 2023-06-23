@@ -1,7 +1,9 @@
 {
     "name": "Cuboid.UnityPlugin",
     "rootNamespace": "Cuboid.UnityPlugin",
-    "references": [],
+    "references": [
+        ""
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
